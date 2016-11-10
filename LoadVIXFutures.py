@@ -20,7 +20,6 @@ now = datetime.datetime.now()
 
 thisYear = str(now.year)
 VIXFutureList = list()
-print(contractExpiries[now.month -1:])
 
 for mon in contractExpiries[now.month -1:]:
     aFile = 'http://cfe.cboe.com/Publish/ScheduledTask/MktData/datahouse/CFE_' + mon + thisYear[2:] + '_VX.csv'
