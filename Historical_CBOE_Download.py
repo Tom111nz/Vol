@@ -42,7 +42,7 @@ def getbinary(ftp, filename, outfile=None):
         print("Try agin ...")
         ftp.retrbinary("RETR " + filename, outfile.write)
 
-scriptpath = os.path.dirname(__file__)
+scriptpath = os.path.dirname('/Users/tomobrien/Documents/python/') #__file__
 fileDirectory = scriptpath + "/CBOE_History/"
 ## get latest date in database
 lastDateInDbQuery = "select substring(max(quote_date), 1, 10) from optionexpiry"
