@@ -30,3 +30,5 @@ with open("Historical_CBOE_Download.py") as f:
     code = compile(f.read(), "Historical_CBOE_Download.py", 'exec')
     exec(code)   
 logging.info('End SPX and VIX options')
+nowEnd = datetime.datetime.now()
+logging.info('Program ended: %s' % nowEnd)
