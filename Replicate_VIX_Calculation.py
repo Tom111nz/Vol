@@ -20,6 +20,110 @@ from ImportFromExcel import importExcelVol
 ## Need to bring in all expiries for given day into python from db, determine which expiries we use (the closest two either side of 30/365 (?), and then go back to db and request the strike, put/call bid/ask details
 ## Also consider calculating VIN and VIF
 
+# create list of strike, callAvgBidAsk, putAvgBidAsk, Bid, ImpVol
+def outputDictionary(aDict, strike, option_type, bid, avgBidAsk, impVol):
+    for i in range(len(strike)):
+         # create the dictionary key if not already created
+        if str(strike[i]) not in aDict:
+            aDict[str(strike[i])] = [0]*7 # use a string because float is not iterable later on
+        # Get the value list from dictionary 
+        aValues = aDict.get(str(strike[i]))
+        # Populate the list
+        if option_type[i] == 'c':
+            aValues[0] = bid[i]
+            aValues[1] = avgBidAsk[i]
+            aValues[2] = impVol[i]
+        else:
+            aValues[3] = bid[i]
+            aValues[4] = avgBidAsk[i]
+            aValues[5] = impVol[i]
+        # repopulate the dictionary
+        aValues[6] = abs(aValues[1] - aValues[4]) # absolute of call - put at strike
+        aDict[str(strike[i])] = aValues
+    return aDict # key: strike, value: [c_bid, c_avgBidAsk, c_impVol, p_bid, p_avgBidAsk, p_impVol, c_avgBidAsk - p_avgBidAsk]
+
+# set up fetching dictionary
+def convertTextToColumnNumber():
+    aDictionary = {}
+    aDictionary["strike"] = 0
+    aDictionary["c_bid"] = 1
+    aDictionary["c_avgBidAsk"] = 2
+    aDictionary["c_impVol"] = 3
+    aDictionary["p_bid"] = 4
+    aDictionary["p_avgBidAsk"] = 5
+    aDictionary["p_impVol"] = 6
+    aDictionary["callLessPutTheo"] = 7
+    aDictionary["varianceContribution"] = 8
+    aDictionary["strikeContribution"] = 9
+    return aDictionary
+
+def f(columnName):
+        columnLookupDict = convertTextToColumnNumber()
+        if columnName in columnLookupDict:
+            return columnLookupDict.get(columnName)
+        else:
+            print(str(columnName) + " not in columnLookupDict. Now we exit.")
+            sys.exit(0)
+
+## Select puts with strike below K0 and work downwards, exclude any put with bid price == 0, once two consecutive puts have zero bid price, ignore all lower strikes
+def isolateStrikes(expiryList, columnName, countZeroBidPrices):
+    zeroBidCheckList = list()
+    for row in expiryList:
+        if row[f(columnName)] == 0: # check the bid price is zero
+            countZeroBidPrices += 1
+##            if countZeroBidPrices < 2:
+##                continue # don't include this strike, go back to loop
+##            else:
+##                return zeroBidCheckList # we have 2 consecutive bid prices of zero and stop adding strikes
+        else:
+            zeroBidCheckList.append(row) # bid price is non zero to add it
+            countZeroBidPrices = 0 # reset counter to zero
+        if countZeroBidPrices > 1:
+            return zeroBidCheckList
+    return zeroBidCheckList
+
+def standardNormalProbabilityDensity(x):
+    return math.exp(-math.pow(x, 2)/2) / math.pow(2 * math.pi, 0.5)
+
+def calculateStrikeContributionToVIX(strike, vol, r, F, T):
+    # d2 = (math.log(F / strike) + (r - math.pow(vol, 2) / 2) * T) / (vol * math.pow(T, 0.5))
+    d2 = - (math.log(strike / F) / (vol *math.pow(T, 0.5))) + (vol *math.pow(T, 0.5)) / 2
+##        print(str(strike))
+##        print(str(vol))
+##        print(str(r))
+##        print(str(F))
+##        print(str(T))
+##        print(str(d2))
+##        print(str(math.log(F / strike)))
+##        print(str((r - math.pow(vol, 2) / 2) * T))
+##        print(str(standardNormalProbabilityDensity(d2) * math.pow(vol, 2)))
+##        sys.exit(0)
+    return standardNormalProbabilityDensity(d2) * math.pow(vol, 2) * T
+
+def calculateExpiryVarianceContribution(theList, r, T, columnHeader, F, volColumnHeader):
+    for i in range(len(theList)):
+        if i == 0:
+            deltaStrike = abs(theList[i][f("strike")] - theList[i+1][f("strike")])
+        elif i == len(theList)-1: # last in list
+            deltaStrike = abs(theList[i][f("strike")] - theList[i-1][f("strike")])
+        else:
+            deltaStrike = abs(theList[i-1][f("strike")] - theList[i+1][f("strike")])/2 # average of strike on either side
+        strikeContribution = deltaStrike / math.pow(theList[i][f("strike")], 2) * math.exp(r*T) * theList[i][f(columnHeader)]
+        theList[i].append(strikeContribution)
+        ## contribution of strike to VIX
+        strike = theList[i][f("strike")]
+        vol = theList[i][f(volColumnHeader)]
+        theList[i].append(calculateStrikeContributionToVIX(strike, vol, r, F, T))
+    return theList
+
+def calculateExpiryVariance(theList, T, K0, F):
+    forwardAdjust = math.pow(F / K0 - 1, 2) / T
+    contributionSum = [sum(i) for i in zip(*theList)] # sum over all columns
+    #print("VarianceContribution: " + str(contributionSum[f("varianceContribution")]))
+    #print("VarianceContributionTimeScaled :" + str(2 / T * contributionSum[f("varianceContribution")] ))
+    #print("Forward Adjust: " + str(forwardAdjust))
+    return 2 / T * contributionSum[f("varianceContribution")] - forwardAdjust, contributionSum[f("strikeContribution")] 
+
 def calculateVIX(quote_date, printResults=False):
     #quote_date = "2014-10-06"
     if printResults:
@@ -142,45 +246,7 @@ def calculateVIX(quote_date, printResults=False):
     farExpiryZipped = zip(farExpiryStrike, farExpiryOption_type, farExpiryBid, farExpiryAvgBidAsk, farExpiryImpVol)
     farExpiryZippedSorted = sorted(farExpiryZipped, key=lambda student: student[0])
 
-    # create list of strike, callAvgBidAsk, putAvgBidAsk, Bid, ImpVol
-    def outputDictionary(aDict, strike, option_type, bid, avgBidAsk, impVol):
-        for i in range(len(strike)):
-             # create the dictionary key if not already created
-            if str(strike[i]) not in aDict:
-                aDict[str(strike[i])] = [0]*7 # use a string because float is not iterable later on
-            # Get the value list from dictionary 
-            aValues = aDict.get(str(strike[i]))
-            # Populate the list
-            if option_type[i] == 'c':
-                aValues[0] = bid[i]
-                aValues[1] = avgBidAsk[i]
-                aValues[2] = impVol[i]
-            else:
-                aValues[3] = bid[i]
-                aValues[4] = avgBidAsk[i]
-                aValues[5] = impVol[i]
-            # repopulate the dictionary
-            aValues[6] = abs(aValues[1] - aValues[4]) # absolute of call - put at strike
-            aDict[str(strike[i])] = aValues
-        return aDict # key: strike, value: [c_bid, c_avgBidAsk, c_impVol, p_bid, p_avgBidAsk, p_impVol, c_avgBidAsk - p_avgBidAsk]
-
-    # set up fetching dictionary
-    columnLookupDict = {}
-    columnLookupDict["strike"] = 0
-    columnLookupDict["c_bid"] = 1
-    columnLookupDict["c_avgBidAsk"] = 2
-    columnLookupDict["c_impVol"] = 3
-    columnLookupDict["p_bid"] = 4
-    columnLookupDict["p_avgBidAsk"] = 5
-    columnLookupDict["p_impVol"] = 6
-    columnLookupDict["callLessPutTheo"] = 7
-    columnLookupDict["varianceContribution"] = 8
-    def f(columnName):
-        if columnName in columnLookupDict:
-            return columnLookupDict.get(columnName)
-        else:
-            print(str(columnName) + " not in columnLookupDict. Now we exit.")
-            sys.exit(0)
+    columnLookupDict = convertTextToColumnNumber()
        
     nearExpiryDict = {}
     nearExpiryDict = outputDictionary(nearExpiryDict, nearExpiryStrike, nearExpiryOption_type, nearExpiryBid, nearExpiryAvgBidAsk, nearExpiryImpVol)
@@ -318,23 +384,6 @@ def calculateVIX(quote_date, printResults=False):
         print("nearExpiryK0Strike: " + str(nearExpiryK0Strike))
         print("farExpiryK0Strike: " + str(farExpiryK0Strike))
 
-    ## Select puts with strike below K0 and work downwards, exclude any put with bid price == 0, once two consecutive puts have zero bid price, ignore all lower strikes
-    def isolateStrikes(expiryList, columnName, countZeroBidPrices):
-        zeroBidCheckList = list()
-        for row in expiryList:
-            if row[f(columnName)] == 0: # check the bid price is zero
-                countZeroBidPrices += 1
-    ##            if countZeroBidPrices < 2:
-    ##                continue # don't include this strike, go back to loop
-    ##            else:
-    ##                return zeroBidCheckList # we have 2 consecutive bid prices of zero and stop adding strikes
-            else:
-                zeroBidCheckList.append(row) # bid price is non zero to add it
-                countZeroBidPrices = 0 # reset counter to zero
-            if countZeroBidPrices > 1:
-                return zeroBidCheckList
-        return zeroBidCheckList
-
     nearExpiryListSortedReverse = sorted(nearExpiryListSorted, key=lambda student: student[f("strike")], reverse=True)
     nearExpiryPutList = [t for t in nearExpiryListSortedReverse if t[f("strike")] < nearExpiryK0Strike] # get all strikes below K0, starting with strike immediately below K0 and decreasing
     countZeroBidPrices = 0
@@ -362,48 +411,30 @@ def calculateVIX(quote_date, printResults=False):
 
     farExpiryK0RowTemp = [t for t in farExpiryListSorted if t[f("strike")] == farExpiryK0Strike]
     farExpiryK0Row = farExpiryK0RowTemp[0]
+    
 
-    def calculateExpiryVarianceContribution(theList, r, T, columnHeader):
-        for i in range(len(theList)):
-            if i == 0:
-                deltaStrike = abs(theList[i][f("strike")] - theList[i+1][f("strike")])
-            elif i == len(theList)-1: # last in list
-                deltaStrike = abs(theList[i][f("strike")] - theList[i-1][f("strike")])
-            else:
-                deltaStrike = abs(theList[i-1][f("strike")] - theList[i+1][f("strike")])/2 # average of strike on either side
-            strikeContribution = deltaStrike / math.pow(theList[i][f("strike")], 2) * math.exp(r*T) * theList[i][f(columnHeader)]
-            theList[i].append(strikeContribution)
-        return theList
+    nearExpiryPutListZeroBidCheckedContribution = calculateExpiryVarianceContribution(nearExpiryPutListZeroBidChecked, nearExpiryInterestRate, nearExpiryTTE, "p_avgBidAsk", nearExpiryForwardIndex, "p_impVol")
+    farExpiryPutListZeroBidCheckedContribution = calculateExpiryVarianceContribution(farExpiryPutListZeroBidChecked, farExpiryInterestRate, nearExpiryTTE, "p_avgBidAsk", farExpiryForwardIndex, "p_impVol")
 
-    nearExpiryPutListZeroBidCheckedContribution = calculateExpiryVarianceContribution(nearExpiryPutListZeroBidChecked, nearExpiryInterestRate, nearExpiryTTE, "p_avgBidAsk")
-    farExpiryPutListZeroBidCheckedContribution = calculateExpiryVarianceContribution(farExpiryPutListZeroBidChecked, farExpiryInterestRate, nearExpiryTTE, "p_avgBidAsk")
-
-    nearExpiryCallListZeroBidCheckedContribution = calculateExpiryVarianceContribution(nearExpiryCallListZeroBidChecked, nearExpiryInterestRate, nearExpiryTTE, "c_avgBidAsk")
-    farExpiryCallListZeroBidCheckedContribution = calculateExpiryVarianceContribution(farExpiryCallListZeroBidChecked, farExpiryInterestRate, nearExpiryTTE, "c_avgBidAsk")
+    nearExpiryCallListZeroBidCheckedContribution = calculateExpiryVarianceContribution(nearExpiryCallListZeroBidChecked, nearExpiryInterestRate, nearExpiryTTE, "c_avgBidAsk", nearExpiryForwardIndex, "c_impVol")
+    farExpiryCallListZeroBidCheckedContribution = calculateExpiryVarianceContribution(farExpiryCallListZeroBidChecked, farExpiryInterestRate, nearExpiryTTE, "c_avgBidAsk", farExpiryForwardIndex, "c_impVol")
 
     nearExpiryK0StrikeDelta = (nearExpiryCallListZeroBidCheckedContribution[0][f("strike")] - nearExpiryPutListZeroBidCheckedContribution[0][f("strike")] ) / 2
     nearExpiryK0Contribution = nearExpiryK0StrikeDelta / math.pow(nearExpiryK0Strike, 2) * math.exp(nearExpiryInterestRate * nearExpiryTTE) * (nearExpiryK0Row[f("c_avgBidAsk")] + nearExpiryK0Row[f("p_avgBidAsk")])/2
     nearExpiryK0Row.append(nearExpiryK0Contribution)
-
+    nearExpiryK0Row.append(calculateStrikeContributionToVIX(nearExpiryK0Row[f("strike")], nearExpiryK0Row[f("c_impVol")], nearExpiryInterestRate, nearExpiryForwardIndex, nearExpiryTTE))
 
     farExpiryK0StrikeDelta = (farExpiryCallListZeroBidCheckedContribution[0][f("strike")] - farExpiryPutListZeroBidCheckedContribution[0][f("strike")] ) / 2
     farExpiryK0Contribution = farExpiryK0StrikeDelta / math.pow(farExpiryK0Strike, 2) * math.exp(farExpiryInterestRate * farExpiryTTE) * (farExpiryK0Row[f("c_avgBidAsk")] + farExpiryK0Row[f("p_avgBidAsk")])/2
     farExpiryK0Row.append(farExpiryK0Contribution)
-
-    def calculateExpiryVariance(theList, T, K0, F):
-        forwardAdjust = math.pow(F / K0 - 1, 2) / T
-        contributionSum = [sum(i) for i in zip(*theList)] # sum over all columns
-        #print("VarianceContribution: " + str(contributionSum[f("varianceContribution")]))
-        #print("VarianceContributionTimeScaled :" + str(2 / T * contributionSum[f("varianceContribution")] ))
-        #print("Forward Adjust: " + str(forwardAdjust))
-        return 2 / T * contributionSum[f("varianceContribution")] - forwardAdjust
+    farExpiryK0Row.append(calculateStrikeContributionToVIX(farExpiryK0Row[f("strike")], farExpiryK0Row[f("c_impVol")], farExpiryInterestRate, farExpiryForwardIndex, farExpiryTTE))
 
     # combine puts, calls and K0 together
     nearExpiryContributionList = list()
     nearExpiryContributionList.extend(nearExpiryPutListZeroBidCheckedContribution)
     nearExpiryContributionList.extend(nearExpiryCallListZeroBidCheckedContribution)
     nearExpiryContributionList.append(nearExpiryK0Row)
-    nearExpiryVariance = calculateExpiryVariance(nearExpiryContributionList, nearExpiryTTE, nearExpiryK0Row[f("strike")], nearExpiryForwardIndex)
+    nearExpiryVariance, nearExpiryStrikeContribution = calculateExpiryVariance(nearExpiryContributionList, nearExpiryTTE, nearExpiryK0Row[f("strike")], nearExpiryForwardIndex)
     if printResults:
         print("nearExpiryVariance: " + str(nearExpiryVariance))
 
@@ -411,7 +442,7 @@ def calculateVIX(quote_date, printResults=False):
     farExpiryContributionList.extend(farExpiryPutListZeroBidCheckedContribution)
     farExpiryContributionList.extend(farExpiryCallListZeroBidCheckedContribution)
     farExpiryContributionList.append(farExpiryK0Row)
-    farExpiryVariance = calculateExpiryVariance(farExpiryContributionList, farExpiryTTE, farExpiryK0Row[f("strike")], farExpiryForwardIndex)
+    farExpiryVariance, farExpiryStrikeContribution = calculateExpiryVariance(farExpiryContributionList, farExpiryTTE, farExpiryK0Row[f("strike")], farExpiryForwardIndex)
     if printResults:
         print("farExpiryVariance: " + str(farExpiryVariance))
 
@@ -428,6 +459,15 @@ def calculateVIX(quote_date, printResults=False):
     nearVixCalc = nearExpiryTTE * nearExpiryVariance * nearExpiryTimeFraction
     farVixCalc = farExpiryTTE * farExpiryVariance * farExpiryTimeFraction
     VIX = 100 * math.pow((nearVixCalc + farVixCalc) * scaleTo365D, 0.5)
+    nearVixCalcScaled = 100 * math.pow(nearVixCalc * scaleTo365D, 0.5)
+    farVixCalcScaled = 100 * math.pow(farVixCalc * scaleTo365D, 0.5)
     if printResults:
+        print("nearVixCalc: " + str(nearVixCalc))
+        print("farVixCalc: " + str(farVixCalc))
+        print("nearVixCalcScaled: " + str(nearVixCalcScaled))
+        print("farVixCalcScaled: " + str(farVixCalcScaled))
+        print("nearExpiryStrikeContribution: " + str(nearExpiryStrikeContribution))
+        print("farExpiryStrikeContribution: " + str(farExpiryStrikeContribution))
+        print("scaleTo365D: " + str(scaleTo365D))
         print("VIX: " + str(VIX))
     return VIX
