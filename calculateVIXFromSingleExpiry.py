@@ -7,6 +7,7 @@ import bisect
 import xlrd
 from ImportFromExcel import importExcelVol
 from Replicate_VIX_Calculation import outputDictionary, f, isolateStrikes, calculateExpiryVarianceContribution, calculateStrikeContributionToVIX, calculateExpiryVariance
+import sys
 
 def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResults=False):
     # connect to db
@@ -102,35 +103,43 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
 ###### Up to line 345 in Replicate_VIX_Calculation (isolateStrikes). Need to check that K0 is correct, and so are call and put lists
 ## Check after making changes to Replicate_VIX_Calculation that running VIV_By_Date gives VIX: 15.753136281361032
 # Test
-optionExpiration_date = '2017-01-20 08:30:00'
-##quote_date = '2016-09-21'
-con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
-sqlQuery = ('select quote_date from OptionExpiry '
-    'where expiration = '"'%s'"' ' 
-    'and rootOriginal = '"'SPX'"' '
-    'group by quote_date '
-    'order by quote_date;' % optionExpiration_date)
-print(sqlQuery)
-cur = con.cursor()
-cur.execute(sqlQuery)
-quote_dates = cur.fetchall()
-cur.close()
+##optionExpiration_date = '2017-01-20 08:30:00'
+##futuresExpiryDateTemp = datetime.datetime.strptime(optionExpiration_date[0:10], "%Y-%m-%d")
+##futuresExpiryDate = futuresExpiryDateTemp.strftime("%Y-%m-%d")
+##print(futuresExpiryDate)
+##con = mdb.connect(host="localhost",user="root",
+##                  passwd="password",db="Vol")
+##sqlQuery = ('Select TradeDate, Contract, Clos from VIXFutures '
+##'where Contract = '
+##'('
+##	'select Contract from VIXFuturesExpiry '
+##	'where Expirydate = '"'%s'"' '
+##');' % futuresExpiryDate)
+##print(sqlQuery)
+##cur = con.cursor()
+##cur.execute(sqlQuery)
+##vixFuturesDataRaw = cur.fetchall()
+##cur.close()
+##
+##for row in vixFuturesDataRaw:
+##    print(row)
+##sys.exit(0)
+####quote_date = '2016-09-21'
+##
+##sqlQuery = ('select quote_date from OptionExpiry '
+##    'where expiration = '"'%s'"' ' 
+##    'and rootOriginal = '"'SPX'"' '
+##    'group by quote_date '
+##    'order by quote_date;' % optionExpiration_date)
+##print(sqlQuery)
+##cur = con.cursor()
+##cur.execute(sqlQuery)
+##quote_dates = cur.fetchall()
+##cur.close()
+##
+##r = 0.01
+##for dt in quote_dates:
+##    #print(str(dt[0].strftime("%Y-%m-%d")))
+##    VIX = calculateVIXFromSingleExpiry(str(dt[0].strftime("%Y-%m-%d")), optionExpiration_date, r, False)
+##    print(str(dt[0].strftime("%Y-%m-%d")) + ":" + str(VIX))
 
-r = 0.01
-for dt in quote_dates:
-    #print(str(dt[0].strftime("%Y-%m-%d")))
-    VIX = calculateVIXFromSingleExpiry(str(dt[0].strftime("%Y-%m-%d")), optionExpiration_date, r, False)
-    print(str(dt[0].strftime("%Y-%m-%d")) + ":" + str(VIX))
-##print("### K0")
-##for row in K0:
-##    print(row)
-##print("### Puts")
-##for row in p:
-##    print(row)
-##print("### Calls")
-##for row in c:
-##    print(row)
-##print("### Sorted")
-##for row in el:
-##    print(row)
