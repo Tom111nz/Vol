@@ -53,6 +53,11 @@ cur.close()
 print("Last Date in Db: " + lastDateInDb[0])
 
 for zipfilename in sorted(listOfZipFiles): # Loop - looking for matching files
+    try:
+        datetime.datetime.strptime(zipfilename[-14:-4], "%Y-%m-%d")
+    except:
+        print("Problem datetime: " + str(zipfilename[-14:-4]))
+        continue
     if datetime.datetime.strptime(zipfilename[-14:-4], "%Y-%m-%d") <= datetime.datetime.strptime(lastDateInDb[0], "%Y-%m-%d"):
         ##print("Not processing :" + zipfilename[-14:-4])
         continue
