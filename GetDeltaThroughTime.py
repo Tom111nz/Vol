@@ -31,19 +31,20 @@ import datetime
 ##     for i in installed_packages])
 ##print(installed_packages_list)
 
-def getDeltaThroughTime(expiration):
+def getDeltaThroughTime(expiration, deltaTarget, optionType):
     con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol")
 
-    sqlQuery = ('select oe.quote_date, oe.Expiration, st.strike, st.option_type, og.delta_1545, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545, og.vega_1545, abs(0.5 - og.delta_1545), abs(0.7 - og.delta_1545)  from optiongreeks og ' 
+    sqlQuery = ('select oe.quote_date, oe.Expiration, st.strike, st.option_type, og.delta_1545, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545, og.vega_1545, '
+        'abs( %s  - og.delta_1545)  from optiongreeks og ' 
         'join optionexpiry oe on oe.ID = og.optionexpiryID '
         'join strike st on st.ID = og.strikeID '
         'where oe.ID in '
         '( '
-        'select ID from optionexpiry where rootOriginal in ("SPX") and expiration = '"'%s'"' '
+        'select ID from optionexpiry where root in ("SPX") and expiration = '"'%s'"' '
         ') '
-        'and st.option_type = '"'c'"' '
-        'order by oe.quote_date, oe.Expiration, st.strike;' % expiration)
+        'and st.option_type = '"'%s'"' '
+        'order by oe.quote_date, oe.Expiration, st.strike;' % (deltaTarget, expiration, optionType))
 
     cur = con.cursor()
     cur.execute(sqlQuery)
@@ -67,7 +68,6 @@ def getDeltaThroughTime(expiration):
         aList.append(row[8])
         aList.append(row[9])
         aList.append(row[10])
-        aList.append(row[11])
         strikeDataRawList.append(aList)
     ##    print(row)
     ##    arr = np.append(arr, np.array((row)), axis=0)
@@ -75,16 +75,16 @@ def getDeltaThroughTime(expiration):
     ##    print(row)
     ##sys.exit(0)
     # loop through quote_dates and find the 50 delta row
-    strikeDataRawHeaders = ['quote_raw', 'expiration', 'strike', 'option_type', 'delta', 'bid', 'ask', 'mid', 'imp_vol', 'vega', 'deltaless0.5', 'deltaless0.7']
+    strikeDataRawHeaders = ['quote_raw', 'expiration', 'strike', 'option_type', 'delta', 'bid', 'ask', 'mid', 'imp_vol', 'vega', 'deltalessX']
     df = pd.DataFrame(strikeDataRawList, columns=strikeDataRawHeaders)
-    # 50 delta
-    idx50 = df.groupby(df['quote_raw'])['deltaless0.5'].idxmin()
-    closest50DStrike = df.loc[idx50, strikeDataRawHeaders]
-    # 70 delta
-    idx70 = df.groupby(df['quote_raw'])['deltaless0.7'].idxmin()
-    closest70DStrike = df.loc[idx70, strikeDataRawHeaders]
+    # X delta
+    idxX = df.groupby(df['quote_raw'])['deltalessX'].idxmin()
+    closestXDStrike = df.loc[idxX, strikeDataRawHeaders]
     ## output to csv
     ##closest50DStrike.to_csv('tester.csv', sep=' ')
     ##closest70DStrike.to_csv('tester70.csv', sep=' ')
-
-    return closest70DStrike.set_index('quote_raw')['mid'].to_dict()
+##    for key, value in closest70DStrike.set_index('quote_raw').T.to_dict('list').items():
+##        print(value)
+##    print('######### exit function')
+    #return closest70DStrike.set_index('quote_raw')['mid'].to_dict()
+    return closestXDStrike.set_index('quote_raw').T.to_dict('list')
