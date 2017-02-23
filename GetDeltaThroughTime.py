@@ -36,7 +36,7 @@ def getDeltaThroughTime(expiration, deltaTarget, optionType):
                   passwd="password",db="Vol")
 
     sqlQuery = ('select oe.quote_date, oe.Expiration, st.strike, st.option_type, og.delta_1545, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545, og.vega_1545, '
-        'abs( %s  - og.delta_1545)  from optiongreeks og ' 
+        'case when st.option_type = "c" then abs(%s - delta_1545) else abs(%s - (1-abs(delta_1545))) end as "delta_gap" from optiongreeks og ' 
         'join optionexpiry oe on oe.ID = og.optionexpiryID '
         'join strike st on st.ID = og.strikeID '
         'where oe.ID in '
@@ -44,14 +44,14 @@ def getDeltaThroughTime(expiration, deltaTarget, optionType):
         'select ID from optionexpiry where root in ("SPX") and expiration = '"'%s'"' '
         ') '
         'and st.option_type = '"'%s'"' '
-        'order by oe.quote_date, oe.Expiration, st.strike;' % (deltaTarget, expiration, optionType))
+        'order by oe.quote_date, oe.Expiration, st.strike;' % (deltaTarget, deltaTarget, expiration, optionType))
 
     cur = con.cursor()
     cur.execute(sqlQuery)
     strikeDataRaw = cur.fetchall()
     cur.close()
 
-    print(len(strikeDataRaw))
+    #print(len(strikeDataRaw))
     ##arr = np.empty((1,10))
     ##print(arr)
     strikeDataRawList =[]

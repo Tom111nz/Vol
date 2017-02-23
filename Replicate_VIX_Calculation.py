@@ -87,6 +87,8 @@ def standardNormalProbabilityDensity(x):
 
 def calculateStrikeContributionToVIX(strike, vol, r, F, T):
     # d2 = (math.log(F / strike) + (r - math.pow(vol, 2) / 2) * T) / (vol * math.pow(T, 0.5))
+    if strike == 0 or vol == 0 or r == 0 or F == 0 or T == 0:
+        return 0
     d2 = - (math.log(strike / F) / (vol *math.pow(T, 0.5))) + (vol *math.pow(T, 0.5)) / 2
 ##        print(str(strike))
 ##        print(str(vol))
@@ -113,7 +115,10 @@ def calculateExpiryVarianceContribution(theList, r, T, columnHeader, F, volColum
         ## contribution of strike to VIX
         strike = theList[i][f("strike")]
         vol = theList[i][f(volColumnHeader)]
-        theList[i].append(calculateStrikeContributionToVIX(strike, vol, r, F, T))
+        if strike == 0 or vol == 0 or r == 0 or F == 0 or T == 0:
+            theList[i].append(0.0)
+        else:
+            theList[i].append(calculateStrikeContributionToVIX(strike, vol, r, F, T))
     return theList
 
 def calculateExpiryVariance(theList, T, K0, F):

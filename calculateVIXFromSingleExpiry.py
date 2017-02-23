@@ -19,7 +19,7 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
     'join strike st on st.ID = og.strikeID '
     'where og.optionexpiryID = '
     '('
-    'select ID from optionexpiry where substring(quote_date, 1, 10) = '"'%s'"' and rootOriginal in ("SPX") and expiration = '"'%s'"''
+    'select ID from optionexpiry where substring(quote_date, 1, 10) = '"'%s'"' and root in ("SPX") and expiration = '"'%s'"''
     ')'
     'order by oe.Expiration, st.strike;' % (quote_date, optionExpiration_date))
     cur = con.cursor()
@@ -48,44 +48,97 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
     expiryDict = outputDictionary(expiryDict, strike, option_type, bid, avgBidAsk, impvol)
     # now move the data from dictionary to a list so is more usable
     expiryList = []
+    expiryListWithoutZeroCallAndPutBid = []
     for key, value in expiryDict.items():
         aList = list()
         aList = [float(key), value[0], value[1], value[2], value[3], value[4], value[5], value[6]]
         expiryList.append(aList)
+        # expiryList to find expiryForwardIndex
+        if value[1] == 0.0 and value[4] == 0.0:
+            ## skip this row
+            skipThisRow = 1
+        else:
+            expiryListWithoutZeroCallAndPutBid.append(aList)
     expiryListSorted = sorted(expiryList, key=lambda student: student[f("strike")], reverse=False)
+    expiryListWithoutZeroCallAndPutBidSorted = sorted(expiryListWithoutZeroCallAndPutBid, key=lambda student: student[f("strike")], reverse=False)
+    if printResults:
+        print('expiryList')
+        print(expiryList)
+        print('expiryListSorted')
+        print(expiryListSorted)
+        print('expiryListWithoutZeroCallAndPutBidSorted')
+        print(expiryListWithoutZeroCallAndPutBidSorted)
     # expiry time in minutes
     expiryTTE30Dminutes = 30 * 24 * 60
     expiryTTE365Dminutes = 365 * 24 * 60
     expiryTTEyears = expiryTTE30Dminutes / expiryTTE365Dminutes
-    ## Determine the forward SPX level where min(abs(c_avgBidAsk - p_avgBidAsk))
-    expiryForwardRow = min(expiryListSorted,key=itemgetter(f("callLessPutTheo")))
+    ## Determine the forward SPX level where min(abs(c_avgBidAsk - p_avgBidAsk)), but don't include strikes where both call and put bids are zero
+    if len(expiryListWithoutZeroCallAndPutBidSorted) < 1:
+        print('No data - VIX is zero')
+        return 0.0
+    else:
+        expiryForwardRow = min(expiryListWithoutZeroCallAndPutBidSorted,key=itemgetter(f("callLessPutTheo")))
     expiryForward = expiryForwardRow[f("strike")]
     expiryForwardIndex = expiryForward + math.exp(expiryTTEyears * r) * (expiryForwardRow[f("c_avgBidAsk")] - expiryForwardRow[f("p_avgBidAsk")])
     ## determine the strike immediately below the forwardIndex
     expiryForwardIndexIndex = bisect.bisect([row[f("strike")] for row in expiryListSorted], expiryForwardIndex)
     expiryK0Strike = expiryListSorted[expiryForwardIndexIndex-1][f("strike")]
+    if printResults:
+        print('expiryK0Strike: ' + str(expiryK0Strike))
     ## isolate puts and calls
     # Puts
     expiryListSortedReverse = sorted(expiryList, key=lambda student: student[f("strike")], reverse=True)
     expiryPutList = [t for t in expiryListSortedReverse if t[f("strike")] < expiryK0Strike] # get all strikes below K0, starting with strike immediately below K0 and decreasing
+    if printResults:
+        print('expiryPutList')
+        print(expiryPutList)
     countZeroBidPrices = 0
     expiryPutListZeroBidChecked = list()
     expiryPutListZeroBidChecked = isolateStrikes(expiryPutList, "p_bid", countZeroBidPrices)
+    if printResults:
+        print('expiryPutListZeroBidChecked')
+        print(expiryPutListZeroBidChecked)
     # Calls
     expiryCallList = [t for t in expiryListSorted if t[f("strike")] > expiryK0Strike] # get all strikes above K0, starting with strike immediately above K0 and increasing
     countZeroBidPrices = 0
     expiryCallListZeroBidChecked = list()
     expiryCallListZeroBidChecked = isolateStrikes(expiryCallList, "c_bid", countZeroBidPrices)
+    if printResults:
+        print('expiryCallListZeroBidChecked')
+        print(expiryCallListZeroBidChecked)
+    if len(expiryCallListZeroBidChecked) < 2 or len(expiryPutListZeroBidChecked) < 2:
+        print('Not enough data to calculate a VIX, so return zero')
+        return 0.0
+
     # the K0 strike
     expiryK0RowTemp = [t for t in expiryList if t[f("strike")] == expiryK0Strike]
     expiryK0Row = expiryK0RowTemp[0]
     # contribution to Variance
     expiryPutListZeroBidCheckedContribution = calculateExpiryVarianceContribution(expiryPutListZeroBidChecked, r, expiryTTEyears, "p_avgBidAsk", expiryForwardIndex, "p_impVol")
     expiryCallListZeroBidCheckedContribution = calculateExpiryVarianceContribution(expiryCallListZeroBidChecked, r, expiryTTEyears, "c_avgBidAsk", expiryForwardIndex, "c_impVol")
+    if printResults:
+        print('expiryCallListZeroBidCheckedContribution:')
+        print(expiryCallListZeroBidCheckedContribution)
+        print('expiryPutListZeroBidCheckedContribution:')
+        print(expiryPutListZeroBidCheckedContribution)
+    # control for when there are no puts or calls with non-zero bids
+    if len(expiryPutListZeroBidCheckedContribution) > 0 and len(expiryCallListZeroBidCheckedContribution) > 0: 
+        expiryK0StrikeDelta = (expiryCallListZeroBidCheckedContribution[0][f("strike")] - expiryPutListZeroBidCheckedContribution[0][f("strike")] ) / 2
+    elif len(expiryPutListZeroBidCheckedContribution) == 0 and len(expiryCallListZeroBidCheckedContribution) == 0:
+        print('return zero; the lists of puts and of calls both have length zero')
+        return 0.0
+    elif len(expiryPutListZeroBidCheckedContribution) > 0 and len(expiryCallListZeroBidCheckedContribution) == 0:
+        expiryK0StrikeDelta = expiryPutListZeroBidCheckedContribution[0][f("strike")]
+    else:
+        print('expiryCallListZeroBidCheckedContribution')
+        print(expiryCallListZeroBidCheckedContribution)
+        expiryK0StrikeDelta = expiryCallListZeroBidCheckedContribution[0][f("strike")] 
 
-    expiryK0StrikeDelta = (expiryCallListZeroBidCheckedContribution[0][f("strike")] - expiryPutListZeroBidCheckedContribution[0][f("strike")] ) / 2
     expiryK0Contribution = expiryK0StrikeDelta / math.pow(expiryK0Strike, 2) * math.exp(r * expiryTTEyears) * (expiryK0Row[f("c_avgBidAsk")] + expiryK0Row[f("p_avgBidAsk")])/2
     expiryK0Row.append(expiryK0Contribution)
+    if printResults:
+        print('expiryK0Row')
+        print(expiryK0Row)
     expiryK0Row.append(calculateStrikeContributionToVIX(expiryK0Row[f("strike")], expiryK0Row[f("c_impVol")], r, expiryForwardIndex, expiryTTEyears))
 
     # combine puts, calls and K0 together

@@ -10,12 +10,11 @@ import xlwt
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol")
 
-sys.exit(0)
-deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5]
+deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
 # VIX Future Name, VIX Future Expiry, SPX Option Expiry
 #VIXFutureOptionExpiryLists = [['X (Nov 10)','2010-11-17','2010-12-18']]
 VIXFutureOptionExpiryLists = (
-('G (Feb 06)','2006-02-15','2006-03-18'),
+#('G (Feb 06)','2006-02-15','2006-03-18'), only has one data point
 ('H (Mar 06)','2006-03-22','2006-04-22'),
 ('J (Apr 06)','2006-04-19','2006-05-20'),
 ('K (May 06)','2006-05-17','2006-06-17'),
@@ -182,9 +181,10 @@ VIXFutureOptionExpiryLists = (
 now = datetime.datetime.now()
 # Loop through deltas
 for deltaTarget in deltaTargetList:
-    pp = PdfPages('Analytics_' + str(now.strftime("%Y-%m-%d")) + '_' + str(deltaTarget) + '.pdf')
+    pp = PdfPages('Analytics_' + str(now.strftime("%Y-%m-%d")) + '_' + str(deltaTarget) + '.pdf') 
 # Loop through VIX Futures
     for row in VIXFutureOptionExpiryLists:
+        
         futureName = row[0]
         futureExpiryString = row[1]
         futureExpiryDatetime = datetime.datetime.strptime(futureExpiryString, "%Y-%m-%d")
@@ -194,7 +194,7 @@ for deltaTarget in deltaTargetList:
     ##    VIXAnalyticsClass = VIXFutureDict[key]
         sqlQuery = ('select oe.quote_date, und.underlying_bid_1545 from OptionExpiry oe '
                     'left join underlying und on oe.id = und.optionexpiryid '
-                    'where oe.rootOriginal = "SPX" '
+                    'where oe.root = "SPX" '
                     'and oe.expiration = '"'%s'"' '
                     'group by oe.quote_date order by oe.quote_date;' % optionExpiryString)
         cur = con.cursor()
@@ -205,24 +205,43 @@ for deltaTarget in deltaTargetList:
         
         # Now calculate VIX using optionExpiry for each day
         dailyValuesDict = {}
+        
+        print('datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day) :' + str(datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day) ))
         for row in quoteDatesOptionsRaw:
             quoteDate = row[0]
             underlyingBid = row[1]
+            #print(quoteDate)
+            #print('datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) :' + str(datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) ))
             try:
                 #optionExpiryDatetime = datetime.datetime.strptime(VIXAnalyticsClass.optionExpiryDate, "%Y-%m-%d %H:%M:%S")
                 if datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) < datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day): 
                     quoteDateKey = datetime.datetime.strftime(quoteDate, "%Y-%m-%d")
+                    #quoteDateKey = '2005-06-21'
+                    #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
                     iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, 0.01, False))
                     iList.append(underlyingBid)
+                    #print('added: ' + str(quoteDateKey))
                     dailyValuesDict[quoteDateKey] = iList
                 else:
                     print('skipping same date :' + VIXAnalyticsClass.optionExpiryDate + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
             except Exception as inst:
                 tsar = 8
-    ##            print('error')
+                print('error here')
+                print(type(inst))    # the exception instance
+                print(inst.args)     # arguments stored in .args
+                print(inst)
+                x, y = inst.args     # unpack args
+                print('x =', x)
+                print('y =', y)
     ##            print(str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
     ##            print(VIXAnalyticsClass.optionExpiryDate)
+        counti = 0
+        for row in dailyValuesDict.items():
+            counti = counti + 1
+##        print(futureName)
+##        print('dailyValuesDict: ' + str(counti))
+##        print('quoteDatesOptionsRaw: ' + str(len(quoteDatesOptionsRaw)))
         
         #VIXFutureDict[key].calculatedVIX = aDict
         #print("Done: " + key + " : " + str(len(dailyValuesDict)))
@@ -276,10 +295,16 @@ for deltaTarget in deltaTargetList:
             sortedVIXFutureList = []
             sortedUnderlyingList = []
             for row in iZippedSorted:
+                # scale VIX futures data from 23-Mar-2007 and earlier
+                if datetime.datetime.strptime(row[0], "%Y-%m-%d") <= datetime.datetime(2007, 3, 23):
+                    sortedVIXFutureList.append(row[2]/10)
+                else:
+                    sortedVIXFutureList.append(row[2])
                 sortedTheDates.append(row[0])
-                sortedCalcVIXList.append(row[1])
-                sortedVIXFutureList.append(row[2])
+                sortedCalcVIXList.append(row[1])               
                 sortedUnderlyingList.append(row[3])
+            
+
             try:
                 # get X delta data
                 if deltaTarget > 0.5:
@@ -287,9 +312,12 @@ for deltaTarget in deltaTargetList:
                 else:
                     optionType = 'c'
                 deltaXDict = getDeltaThroughTime(optionExpiryString, deltaTarget, optionType)
-    ##            print('deltaXDict')
-    ##            for key, value in deltaXDict.items():
-    ##                print(key)
+##                print('deltaXDict')
+##                for key, value in deltaXDict.items():
+##                    print(key)
+##                print('sortedtheDates')
+##                for row in sortedTheDates:
+##                    print(row)
                # scale the 70D theos to the first Calculated VIX value
         ##        print(sortedTheDates[0])
         ##        print(deltaXDict)
@@ -307,29 +335,53 @@ for deltaTarget in deltaTargetList:
                     sys.exit(0)
                 deltaXDScaled = []
                 strikeXD = []
+                if deltaXDFirst == 0:
+                    print('deltaXDFirst is zero for ' + futureName + ' ' + str(deltaTarget))
+                    continue
+                # calculate the scaler
+                scale = 0
+                for numb in sortedCalcVIXList:
+                    if numb > 0:
+                        scale = numb / deltaXDFirst
+                        break
                 for row in sorted(sortedTheDates, key=lambda student: student[0]):
                     if row in deltaXDict:
-                        deltaXDScaled.append(deltaXDict[row][6] / deltaXDFirst * sortedCalcVIXList[0])
+                        deltaXDScaled.append(deltaXDict[row][6] * scale) #/ deltaXDFirst * sortedCalcVIXList[0])
                         strikeXD.append(deltaXDict[row][1])
-                print(str(len(sortedCalcVIXList)))
-                print(str(len(deltaXDScaled)))
+##                print(str(len(sortedCalcVIXList)))
+##                print(str(len(deltaXDScaled)))
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
                 xAxis = range(len(sortedCalcVIXList))
+                print('xAxis')
+                print(str(len(xAxis)))
                 ax.plot(xAxis, sortedCalcVIXList, 'r-', xAxis, sortedVIXFutureList, 'g-', xAxis, deltaXDScaled, 'k-')
                 ax2 = ax.twinx()
-                ax2.plot(xAxis, sortedUnderlyingList, 'b--', strikeXD, 'r--')
+                ax2.plot(xAxis, sortedUnderlyingList, 'b--')#, strikeXD, 'r--')
                 ax.legend(['Calculated VIX', 'VIX Future', 'Delta=' + str(deltaTarget) + optionType])
-                ax2.legend(['Underlying', 'Strike'], loc=3)
+                #ax2.legend(['Underlying', 'Strike'], loc=3)
                 plt.title(futureName)
-                #plt.show()
-            
-                pp.savefig(fig)
-                plt.close()
-            except:
+                plt.show()
+                if fig is not None:
+                    #print(fig)
+                    pp.savefig(fig)
+                    plt.close()
+                else:
+                    print('fig was none for ' + futureName)
+                    print(fig)
+            except Exception as inst:
                 print("caught error ...")
-                pp.close()
-                plt.close()
+                print(type(inst))    # the exception instance
+                print(inst.args)     # arguments stored in .args
+                print(inst)
+                x, y = inst.args     # unpack args
+                print('x =', x)
+                print('y =', y)
+                if fig is not None:
+                    print(fig)
+                    pp.savefig(fig)
+                    plt.close()
+                 # pp.close()
                 
             # output to  textfile
     ##        book = xlwt.Workbook()
@@ -345,5 +397,6 @@ for deltaTarget in deltaTargetList:
     ##        book.save("singleExpiryAnalytics.xls")
     ##        for trow in sorted(theDates, key=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d")):
     ##            print(trow)
-        print('Done : ' + futureName + ' :' + str(len(calcVixList)))
-pp.close()
+    now2 = datetime.datetime.now()       
+    print('Done : ' + str(deltaTarget) + ' :' + str(now.strftime("%Y-%m-%d %H:%M")))
+    pp.close()
