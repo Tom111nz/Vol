@@ -3,6 +3,7 @@ import sys
 import datetime
 from calculateVIXFromSingleExpiry import calculateVIXFromSingleExpiry
 from GetDeltaThroughTime import getDeltaThroughTime
+from getDailyPnL import getDailyPnL
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import xlwt
@@ -10,7 +11,9 @@ import xlwt
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol")
 
-deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
+#deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
+deltaTargetList = [0.7]
+printToFile = False
 # VIX Future Name, VIX Future Expiry, SPX Option Expiry
 #VIXFutureOptionExpiryLists = [['X (Nov 10)','2010-11-17','2010-12-18']]
 VIXFutureOptionExpiryLists = (
@@ -178,6 +181,7 @@ VIXFutureOptionExpiryLists = (
 ##for row in allVIXFuturesAndTheirExpiries:
 ##    VIXFutureDict[str(row[0])] = VIXAnalytics(row[0], row[1])
 ##print('VIXFutureDict: ' + str(len(VIXFutureDict)))
+
 now = datetime.datetime.now()
 # Loop through deltas
 for deltaTarget in deltaTargetList:
@@ -216,7 +220,7 @@ for deltaTarget in deltaTargetList:
                 #optionExpiryDatetime = datetime.datetime.strptime(VIXAnalyticsClass.optionExpiryDate, "%Y-%m-%d %H:%M:%S")
                 if datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) < datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day): 
                     quoteDateKey = datetime.datetime.strftime(quoteDate, "%Y-%m-%d")
-                    #quoteDateKey = '2005-06-21'
+                    #quoteDateKey = '2009-06-25'
                     #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
                     iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, 0.01, False))
@@ -224,7 +228,7 @@ for deltaTarget in deltaTargetList:
                     #print('added: ' + str(quoteDateKey))
                     dailyValuesDict[quoteDateKey] = iList
                 else:
-                    print('skipping same date :' + VIXAnalyticsClass.optionExpiryDate + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
+                    print('skipping same date :' + optionExpiryString + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
             except Exception as inst:
                 tsar = 8
                 print('error here')
@@ -236,9 +240,9 @@ for deltaTarget in deltaTargetList:
                 print('y =', y)
     ##            print(str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
     ##            print(VIXAnalyticsClass.optionExpiryDate)
-        counti = 0
-        for row in dailyValuesDict.items():
-            counti = counti + 1
+##        counti = 0
+##        for row in dailyValuesDict.items():
+##            counti = counti + 1
 ##        print(futureName)
 ##        print('dailyValuesDict: ' + str(counti))
 ##        print('quoteDatesOptionsRaw: ' + str(len(quoteDatesOptionsRaw)))
@@ -251,6 +255,7 @@ for deltaTarget in deltaTargetList:
                     'where contract = '"'%s'"' '
                     'order by TradeDate asc;' % futureName)
         cur = con.cursor()
+        print(sqlQuery)
         cur.execute(sqlQuery)
         VIXFuturesDataRaw = cur.fetchall()
         cur.close()
@@ -324,16 +329,27 @@ for deltaTarget in deltaTargetList:
         ##        for key, value in deltaXDict.items():
         ##                print(key)
                 #print('Here is key: ' + str(deltaXDict[sortedTheDates[0]]))
-                if str(sortedTheDates[0]) in deltaXDict:   
-                    deltaXDFirst = deltaXDict[sortedTheDates[0]][6]
-                else:
-                    print('Major problem: first date not in deltaXDict')
-                    for key, value in deltaXDict.items():
-                        print(key)
-                    print('First date')
-                    print(sortedTheDates[0])
-                    sys.exit(0)
+                for x in range(0, len(sortedTheDates)):
+                    if str(sortedTheDates[x]) in deltaXDict:
+##                        print('deltaXDict[sortedTheDates[0]][6]')
+##                        print(str(deltaXDict[sortedTheDates[x]][6]))
+                        deltaXDFirst = deltaXDict[sortedTheDates[x]][6]
+                        break
+                    else:
+                        deltaXDict[sortedTheDates[x]] = [0, 0, 0, 0, 0, 0, 0] ## cannot find the date in deltaXDict, so add a zero for that date
+                        print('added a zero to deltaXDict for ' + str(sortedTheDates[x]))
+##                        print('Major problem: first date not in deltaXDict')
+##                        print('deltaXDict')
+##                        for key, value in deltaXDict.items():
+##                            print(key)
+##                        print('dailyValuesDict')
+##                        for key, value in dailyValuesDict.items():
+##                            print(key)
+##                        print('First date')
+##                        print(sortedTheDates[0])
+##                        sys.exit(0)
                 deltaXDScaled = []
+                deltaXDScaled_No = []
                 strikeXD = []
                 if deltaXDFirst == 0:
                     print('deltaXDFirst is zero for ' + futureName + ' ' + str(deltaTarget))
@@ -344,25 +360,39 @@ for deltaTarget in deltaTargetList:
                     if numb > 0:
                         scale = numb / deltaXDFirst
                         break
+##                print('scale:'  + str(scale))
                 for row in sorted(sortedTheDates, key=lambda student: student[0]):
                     if row in deltaXDict:
+##                        print('deltaXDict[row] ' + str (deltaXDict[row]))
+##                        print('deltaXDict[row][6] ' + str(deltaXDict[row][6] ))
                         deltaXDScaled.append(deltaXDict[row][6] * scale) #/ deltaXDFirst * sortedCalcVIXList[0])
+                        deltaXDScaled_No.append(deltaXDict[row][6])
                         strikeXD.append(deltaXDict[row][1])
 ##                print(str(len(sortedCalcVIXList)))
 ##                print(str(len(deltaXDScaled)))
+                ## Daily PnL
+                strikeChoice = 1 # the index number of the strike we choose (0 is the first). We would wait 2 days to let it settle before trading it, so use 1.
+                numOptionContracts = -1 # -1 is short 1
+                optionPointValue = 100
+                optionPnL, optionPnLCumSum = getDailyPnL(sortedVIXFutureList, futureName, deltaTarget, optionExpiryString, optionType, strikeXD[strikeChoice], strikeChoice, numOptionContracts, optionPointValue)
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
-                xAxis = range(len(sortedCalcVIXList))
-                print('xAxis')
-                print(str(len(xAxis)))
-                ax.plot(xAxis, sortedCalcVIXList, 'r-', xAxis, sortedVIXFutureList, 'g-', xAxis, deltaXDScaled, 'k-')
-                ax2 = ax.twinx()
-                ax2.plot(xAxis, sortedUnderlyingList, 'b--')#, strikeXD, 'r--')
-                ax.legend(['Calculated VIX', 'VIX Future', 'Delta=' + str(deltaTarget) + optionType])
-                #ax2.legend(['Underlying', 'Strike'], loc=3)
-                plt.title(futureName)
-                plt.show()
-                if fig is not None:
+                if printToFile:
+ 
+                    xAxis = range(len(sortedCalcVIXList))
+    ##                print('xAxis')
+    ##                print(str(len(xAxis)))
+                    ax.plot(xAxis, sortedCalcVIXList, 'r-', xAxis, sortedVIXFutureList, 'g-', xAxis, deltaXDScaled, 'k-')
+                    axes = plt.gca()
+                    axes.set_ylim([0,min(300, max(sortedCalcVIXList)+20, max(deltaXDScaled)+20)])
+                    ax2 = ax.twinx()
+                    ax2.plot(xAxis, sortedUnderlyingList, 'b--')#, strikeXD, 'r--')
+                    ax.legend(['Calculated VIX', 'VIX Future', 'Delta=' + str(deltaTarget) + optionType + ' ' + str(round(scale, 2))], loc='best')
+                    #ax2.legend(['Underlying', 'Strike'], loc=3)
+                    plt.title(futureName)
+ 
+                #plt.show()
+                if fig is not None and printToFile:
                     #print(fig)
                     pp.savefig(fig)
                     plt.close()
@@ -377,26 +407,36 @@ for deltaTarget in deltaTargetList:
                 x, y = inst.args     # unpack args
                 print('x =', x)
                 print('y =', y)
-                if fig is not None:
+                if fig is not None and printToFile:
                     print(fig)
                     pp.savefig(fig)
                     plt.close()
                  # pp.close()
-                
             # output to  textfile
-    ##        book = xlwt.Workbook()
-    ##        sheet1 = book.add_sheet('sheet1')
-    ##        for i,e in enumerate(sortedCalcVIXList):
-    ##            sheet1.write(i,1,e)
-    ##        for i,e in enumerate(sortedVIXFutureList):
-    ##            sheet1.write(i,2,e)
-    ##        for i,e in enumerate(sortedUnderlyingList):
-    ##            sheet1.write(i,3,e)
-    ##        for i,e in enumerate(sortedTheDates):
-    ##            sheet1.write(i,4,e)
-    ##        book.save("singleExpiryAnalytics.xls")
-    ##        for trow in sorted(theDates, key=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d")):
-    ##            print(trow)
+##            book = xlwt.Workbook()
+##            sheet1 = book.add_sheet(futureName)
+##            sheet1.write(0, 0, 'Date')
+##            for i,e in enumerate(sortedTheDates):
+##                sheet1.write(i+1,0,e)
+##            sheet1.write(0, 1, 'CalcVix')
+##            for i,e in enumerate(sortedCalcVIXList):
+##                sheet1.write(i+1,1,e)
+##            sheet1.write(0, 2, 'VixFuture')
+##            for i,e in enumerate(sortedVIXFutureList):
+##                sheet1.write(i+1,2,e)
+##            sheet1.write(0, 3, 'UnderlyingIndex')
+##            for i,e in enumerate(sortedUnderlyingList):
+##                sheet1.write(i+1,3,e)
+##            sheet1.write(0, 4, 'ScaledTheo')
+##            for i,e in enumerate(deltaXDScaled):
+##                sheet1.write(i+1,4,e)
+##            sheet1.write(0, 5, 'UnScaledTheo')
+##            for i,e in enumerate(deltaXDScaled_No):
+##                sheet1.write(i+1,5,e)
+##            book.save("singleExpiryAnalytics" + now.strftime("%Y-%m-%d") + ".xls")
+##            for trow in sorted(theDates, key=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d")):
+##                print(trow)
+            #sys.exit(0)
     now2 = datetime.datetime.now()       
     print('Done : ' + str(deltaTarget) + ' :' + str(now.strftime("%Y-%m-%d %H:%M")))
     pp.close()

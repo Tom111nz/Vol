@@ -85,6 +85,7 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
     expiryK0Strike = expiryListSorted[expiryForwardIndexIndex-1][f("strike")]
     if printResults:
         print('expiryK0Strike: ' + str(expiryK0Strike))
+        print('expiryForwardIndex: ' + str(expiryForwardIndex))
     ## isolate puts and calls
     # Puts
     expiryListSortedReverse = sorted(expiryList, key=lambda student: student[f("strike")], reverse=True)
@@ -150,6 +151,9 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
     # calculate VIX
     scaleTo365D = expiryTTE365Dminutes / expiryTTE30Dminutes
     VixCalc = expiryTTEyears * expiryVariance
+    if VixCalc < 0:
+        print('VixCalc is negative, return 0. Quote_date = ' + str(quote_date) + ' It will be because of the large difference between the expiryForwardIndex and the expiryK0Strike')
+        return 0.0
     VIX = 100 * math.pow(VixCalc * scaleTo365D, 0.5)
     return VIX
     
