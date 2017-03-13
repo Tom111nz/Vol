@@ -18,37 +18,37 @@ printToFile = False
 #VIXFutureOptionExpiryLists = [['X (Nov 10)','2010-11-17','2010-12-18']]
 VIXFutureOptionExpiryLists = (
 #('G (Feb 06)','2006-02-15','2006-03-18'), only has one data point
-('H (Mar 06)','2006-03-22','2006-04-22'),
-('J (Apr 06)','2006-04-19','2006-05-20'),
-('K (May 06)','2006-05-17','2006-06-17'),
-('M (Jun 06)','2006-06-21','2006-07-22'),
-('N (Jul 06)','2006-07-19','2006-08-19'),
-('Q (Aug 06)','2006-08-16','2006-09-16'),
-('U (Sep 06)','2006-09-20','2006-10-21'),
-('V (Oct 06)','2006-10-18','2006-11-18'),
-('X (Nov 06)','2006-11-15','2006-12-16'),
-('Z (Dec 06)','2006-12-20','2007-01-20'),
-('F (Jan 07)','2007-01-17','2007-02-17'),
-('G (Feb 07)','2007-02-14','2007-03-17'),
-('H (Mar 07)','2007-03-21','2007-04-21'),
-('J (Apr 07)','2007-04-18','2007-05-19'),
-('K (May 07)','2007-05-16','2007-06-16'),
-('M (Jun 07)','2007-06-20','2007-07-21'),
-('N (Jul 07)','2007-07-18','2007-08-18'),
-('Q (Aug 07)','2007-08-22','2007-09-22'),
-('U (Sep 07)','2007-09-19','2007-10-20'),
-('V (Oct 07)','2007-10-17','2007-11-17'),
-('X (Nov 07)','2007-11-21','2007-12-22'),
-('Z (Dec 07)','2007-12-19','2008-01-19'),
-('F (Jan 08)','2008-01-16','2008-02-16'),
-('G (Feb 08)','2008-02-19','2008-03-22'),
-('H (Mar 08)','2008-03-19','2008-04-19'),
-('J (Apr 08)','2008-04-16','2008-05-17'),
-('K (May 08)','2008-05-21','2008-06-21'),
-('M (Jun 08)','2008-06-18','2008-07-19'),
-('N (Jul 08)','2008-07-16','2008-08-16'),
-('Q (Aug 08)','2008-08-20','2008-09-20'),
-('U (Sep 08)','2008-09-17','2008-10-18'),
+##('H (Mar 06)','2006-03-22','2006-04-22'),
+##('J (Apr 06)','2006-04-19','2006-05-20'),
+##('K (May 06)','2006-05-17','2006-06-17'),
+##('M (Jun 06)','2006-06-21','2006-07-22'),
+##('N (Jul 06)','2006-07-19','2006-08-19'),
+##('Q (Aug 06)','2006-08-16','2006-09-16'),
+##('U (Sep 06)','2006-09-20','2006-10-21'),
+##('V (Oct 06)','2006-10-18','2006-11-18'),
+##('X (Nov 06)','2006-11-15','2006-12-16'),
+##('Z (Dec 06)','2006-12-20','2007-01-20'),
+##('F (Jan 07)','2007-01-17','2007-02-17'),
+##('G (Feb 07)','2007-02-14','2007-03-17'),
+##('H (Mar 07)','2007-03-21','2007-04-21'),
+##('J (Apr 07)','2007-04-18','2007-05-19'),
+##('K (May 07)','2007-05-16','2007-06-16'),
+##('M (Jun 07)','2007-06-20','2007-07-21'),
+##('N (Jul 07)','2007-07-18','2007-08-18'),
+##('Q (Aug 07)','2007-08-22','2007-09-22'),
+##('U (Sep 07)','2007-09-19','2007-10-20'),
+##('V (Oct 07)','2007-10-17','2007-11-17'),
+##('X (Nov 07)','2007-11-21','2007-12-22'),
+##('Z (Dec 07)','2007-12-19','2008-01-19'),
+##('F (Jan 08)','2008-01-16','2008-02-16'),
+##('G (Feb 08)','2008-02-19','2008-03-22'),
+##('H (Mar 08)','2008-03-19','2008-04-19'),
+##('J (Apr 08)','2008-04-16','2008-05-17'),
+##('K (May 08)','2008-05-21','2008-06-21'),
+##('M (Jun 08)','2008-06-18','2008-07-19'),
+##('N (Jul 08)','2008-07-16','2008-08-16'),
+##('Q (Aug 08)','2008-08-20','2008-09-20'),
+##('U (Sep 08)','2008-09-17','2008-10-18'),
 ('V (Oct 08)','2008-10-22','2008-11-22'),
 ('X (Nov 08)','2008-11-19','2008-12-20'),
 ('Z (Dec 08)','2008-12-17','2009-01-17'),
@@ -223,7 +223,10 @@ for deltaTarget in deltaTargetList:
                     #quoteDateKey = '2009-06-25'
                     #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
-                    iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, 0.01, False))
+                    if printToFile:
+                        iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, 0.01, False))
+                    else:
+                        iList.append(0)
                     iList.append(underlyingBid)
                     #print('added: ' + str(quoteDateKey))
                     dailyValuesDict[quoteDateKey] = iList
@@ -299,6 +302,7 @@ for deltaTarget in deltaTargetList:
             sortedCalcVIXList = []
             sortedVIXFutureList = []
             sortedUnderlyingList = []
+            sortedVIXFutureListDict = {}
             for row in iZippedSorted:
                 # scale VIX futures data from 23-Mar-2007 and earlier
                 if datetime.datetime.strptime(row[0], "%Y-%m-%d") <= datetime.datetime(2007, 3, 23):
@@ -308,7 +312,7 @@ for deltaTarget in deltaTargetList:
                 sortedTheDates.append(row[0])
                 sortedCalcVIXList.append(row[1])               
                 sortedUnderlyingList.append(row[3])
-            
+                sortedVIXFutureListDict[row[0]] = sortedVIXFutureList[-1] # need this for getDailyPnL
 
             try:
                 # get X delta data
@@ -374,11 +378,44 @@ for deltaTarget in deltaTargetList:
                 strikeChoice = 1 # the index number of the strike we choose (0 is the first). We would wait 2 days to let it settle before trading it, so use 1.
                 numOptionContracts = -1 # -1 is short 1
                 optionPointValue = 100
-                optionPnL, optionPnLCumSum = getDailyPnL(sortedVIXFutureList, futureName, deltaTarget, optionExpiryString, optionType, strikeXD[strikeChoice], strikeChoice, numOptionContracts, optionPointValue)
+                optionPnL = []
+                optionPnLCumSum = []
+                vixFuturePnL = []
+                vixFuturePnLCumSum = []
+                totalPnL = []
+                totalPnLCumSum = []
+                strikeUsedPnL = []
+                print(str(len(strikeXD)))
+               
+                for i in range(strikeChoice):
+                    optionPnL.append(0.0)
+                    optionPnLCumSum.append(0.0)
+                    vixFuturePnL.append(0)
+                    vixFuturePnLCumSum.append(0)
+                    totalPnL.append(0)
+                    totalPnLCumSum.append(0)
+                    strikeUsedPnL.append(0)
+                while strikeChoice < len(strikeXD):
+                    strikeChoice, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL = getDailyPnL(sortedTheDates[strikeChoice-1:], sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeXD, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL)
+                    print('Looped')
+                    print(str(strikeChoice))
+                print('strikePnL')
+##                for row in strikeUsedPnL:
+##                    print(row)
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
+                xAxis = range(len(optionPnLCumSum))
+                ax.plot(xAxis, vixFuturePnLCumSum, 'r-', xAxis, optionPnLCumSum, 'g-', xAxis, totalPnLCumSum, 'k-', xAxis, strikeUsedPnL[0:len(optionPnLCumSum)])
+                ax.legend(['Vix Future', 'Option:' + str(numOptionContracts), 'Total', 'Strike'], loc='best')
+                plt.title(futureName+ " last strike:" + str(strikeUsedPnL[-1]))
+                ax = plt.gca()
+                ax.grid(True)
+                plt.show()
+
+                
                 if printToFile:
- 
+                    fig = plt.figure()
+                    ax = fig.add_subplot(111) 
                     xAxis = range(len(sortedCalcVIXList))
     ##                print('xAxis')
     ##                print(str(len(xAxis)))
@@ -392,13 +429,14 @@ for deltaTarget in deltaTargetList:
                     plt.title(futureName)
  
                 #plt.show()
-                if fig is not None and printToFile:
-                    #print(fig)
-                    pp.savefig(fig)
-                    plt.close()
-                else:
-                    print('fig was none for ' + futureName)
-                    print(fig)
+                if printToFile:
+                    if fig is not None:
+                        #print(fig)
+                        pp.savefig(fig)
+                        plt.close()
+                    else:
+                        print('fig was none for ' + futureName)
+                        #print(fig)
             except Exception as inst:
                 print("caught error ...")
                 print(type(inst))    # the exception instance
