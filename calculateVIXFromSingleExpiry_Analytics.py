@@ -385,6 +385,8 @@ for deltaTarget in deltaTargetList:
                 totalPnL = []
                 totalPnLCumSum = []
                 strikeUsedPnL = []
+                optionPositionList = []
+                spotVix = []
                 print(str(len(strikeXD)))
                
                 for i in range(strikeChoice):
@@ -395,13 +397,18 @@ for deltaTarget in deltaTargetList:
                     totalPnL.append(0)
                     totalPnLCumSum.append(0)
                     strikeUsedPnL.append(0)
+                    optionPositionList.append(0)
+                    spotVix.append(0)
                 while strikeChoice < len(strikeXD):
-                    strikeChoice, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL = getDailyPnL(sortedTheDates[strikeChoice-1:], sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeXD, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL)
+                    strikeChoice, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, spotVix = getDailyPnL(sortedTheDates[strikeChoice-1:], sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeXD, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, spotVix)
                     print('Looped')
                     print(str(strikeChoice))
-                print('strikePnL')
+##                print('optionPositionList')
+##                for row in optionPositionList:
+##                    print(row)
 ##                for row in strikeUsedPnL:
 ##                    print(row)
+##                sys.exit(0)
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
                 xAxis = range(len(optionPnLCumSum))
@@ -451,8 +458,17 @@ for deltaTarget in deltaTargetList:
                     plt.close()
                  # pp.close()
             # output to  textfile
-##            book = xlwt.Workbook()
-##            sheet1 = book.add_sheet(futureName)
+            book = xlwt.Workbook()
+            sheet1 = book.add_sheet(futureName)
+            listOfOutputsNames = ['Date', 'CalcVix', 'VixFuture']
+            listOfOutputs = [sortedTheDates, sortedCalcVIXList, sortedVIXFutureList]
+##            print(listOfOutputs)
+##            print(listOfOutputs[1])
+##            sys.exit(0)
+            for outer in range(0, len(listOfOutputsNames)):
+                sheet1.write(0, outer, listOfOutputsNames[outer])
+                for i,e in enumerate(listOfOutputs[outer]):
+                    sheet1.write(i+1,outer,e)
 ##            sheet1.write(0, 0, 'Date')
 ##            for i,e in enumerate(sortedTheDates):
 ##                sheet1.write(i+1,0,e)
@@ -462,6 +478,9 @@ for deltaTarget in deltaTargetList:
 ##            sheet1.write(0, 2, 'VixFuture')
 ##            for i,e in enumerate(sortedVIXFutureList):
 ##                sheet1.write(i+1,2,e)
+##            sheet1.write(0, 11, 'spotVixHigh')
+##            for i,e in enumerate(spotVix):
+##                sheet1.write(i+1,11,e)
 ##            sheet1.write(0, 3, 'UnderlyingIndex')
 ##            for i,e in enumerate(sortedUnderlyingList):
 ##                sheet1.write(i+1,3,e)
@@ -471,10 +490,35 @@ for deltaTarget in deltaTargetList:
 ##            sheet1.write(0, 5, 'UnScaledTheo')
 ##            for i,e in enumerate(deltaXDScaled_No):
 ##                sheet1.write(i+1,5,e)
-##            book.save("singleExpiryAnalytics" + now.strftime("%Y-%m-%d") + ".xls")
+##            sheet1.write(0, 6, 'vixFuturePnL')
+##            for i,e in enumerate(vixFuturePnL):
+##                sheet1.write(i+1,6,e)
+##            sheet1.write(0, 7, 'vixFuturePnLCumSum')
+##            for i,e in enumerate(vixFuturePnLCumSum):
+##                sheet1.write(i+1,7,e)
+##            sheet1.write(0, 8, 'optionPnL')
+##            for i,e in enumerate(optionPnL):
+##                sheet1.write(i+1,7,e)
+##            sheet1.write(0, 9, 'optionPnLCumSum')
+##            for i,e in enumerate(optionPnLCumSum):
+##                sheet1.write(i+1,8,e)
+##            sheet1.write(0, 10, 'totalPnL')
+##            for i,e in enumerate(totalPnL):
+##                sheet1.write(i+1,7,e)
+##            sheet1.write(0, 11, 'totalPnLCumSum')
+##            for i,e in enumerate(totalPnLCumSum):
+##                sheet1.write(i+1,8,e)
+##            sheet1.write(0, 12, 'strikeUsedPnL')
+##            for i,e in enumerate(strikeUsedPnL):
+##                sheet1.write(i+1,9,e)
+##            sheet1.write(0, 13, 'optionPositionList')
+##            for i,e in enumerate(optionPositionList):
+##                sheet1.write(i+1,10,e)
+
+            book.save("singleExpiryAnalytics_" + now.strftime("%Y-%m-%d") + ".xls")
 ##            for trow in sorted(theDates, key=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d")):
 ##                print(trow)
-            #sys.exit(0)
+            sys.exit(0)
     now2 = datetime.datetime.now()       
     print('Done : ' + str(deltaTarget) + ' :' + str(now.strftime("%Y-%m-%d %H:%M")))
     pp.close()

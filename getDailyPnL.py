@@ -9,7 +9,7 @@ con = mdb.connect(host="localhost",user="root",
 
 def queryStrikeThroughtime(deltaTarget, optionExpiryString, optionType, strike):
        return ('select oe.quote_date, oe.Expiration, st.strike, st.option_type, og.delta_1545, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545, og.vega_1545, '
-        'case when st.option_type = "c" then abs(%s - delta_1545) else abs(%s - (1-abs(delta_1545))) end as "delta_gap", vi.Clos from optiongreeks og ' 
+        'case when st.option_type = "c" then abs(%s - delta_1545) else abs(%s - (1-abs(delta_1545))) end as "delta_gap", vi.High from optiongreeks og ' 
         'join optionexpiry oe on oe.ID = og.optionexpiryID '
         'join strike st on st.ID = og.strikeID '
         'join VIX vi on vi.Tradedate = left(oe.quote_date, 10) '
@@ -22,14 +22,14 @@ def queryStrikeThroughtime(deltaTarget, optionExpiryString, optionType, strike):
         'order by oe.quote_date, oe.Expiration, st.strike;' % (deltaTarget, deltaTarget, optionExpiryString, optionType, strike))
 
 
-def getDailyPnL(sortedTheDates, sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeList, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL):
+def getDailyPnL(sortedTheDates, sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeList, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, spotVix):
 
     sqlQuery = queryStrikeThroughtime(deltaTarget, optionExpiryString, optionType, strikeList[strikeChoice])
     cur = con.cursor()
     cur.execute(sqlQuery)
     strikeDataRaw = cur.fetchall()
     cur.close()
-
+    print(sqlQuery)
     # create a dictionary to put data from db in
     dbDateDict = {}
     for row in strikeDataRaw:
@@ -38,15 +38,11 @@ def getDailyPnL(sortedTheDates, sortedVIXFutureListDict, futureName, deltaTarget
            valueList.append(row[f])
            dbDateDict[datetime.datetime.strftime(row[0], "%Y-%m-%d")] = valueList
     
-    counter = strikeChoice - 1 # we do this because we bring in a day earlier than we need, to enable VixFuture PnL
+    counter = strikeChoice -1 # we do this because we bring in a day earlier than we need, to enable VixFuture PnL
     numOptionContractsOriginal = numOptionContracts
-    strike = strikeList[strikeChoice]
+    #strike = strikeList[strikeChoice]
     for dateRow in sortedTheDates:
         dateRowKey = dateRow
-        if numOptionContracts == 0:
-               strikeUsedPnL.append(0)
-        else:
-               strikeUsedPnL.append(strike)
         if dateRowKey in dbDateDict:
                row = dbDateDict[dateRowKey]
                #print(row)
@@ -67,8 +63,18 @@ def getDailyPnL(sortedTheDates, sortedVIXFutureListDict, futureName, deltaTarget
                    vixFuturePnLCumSum.append(futVal + vixFuturePnLCumSum[-1])
                    totalPnL.append(Decimal(optionPnL[-1]) + Decimal(vixFuturePnL[-1]))
                    totalPnLCumSum.append(Decimal(optionPnLCumSum[-1]) + Decimal(vixFuturePnLCumSum[-1]))
+                   if numOptionContracts == 0:
+                      strikeUsedPnL.append(0)
+                   else:
+                      strikeUsedPnL.append(row[2])
+                   spotVix.append(row[11])
+                   optionPositionList.append(numOptionContracts)
                else:               
                    val = (row[6] - previousRow[6]) * numOptionContracts * optionPointValue
+##                   print('val ' + str(val))
+##                   print('row ' + str(row))
+##                   print('previousRow ' + str(previousRow))
+##                   sys.exit(0)
                    optionPnL.append(val) # hit ask to buy contract back
                    optionPnLCumSum.append(val + optionPnLCumSum[-1])
                    if Decimal(sortedVIXFutureListDict[dateRowKey]) > 1 and Decimal(sortedVIXFutureListDict[previousDateKey]) > 1: # check VixFuture is less than 1 vol (may have expired or not started trading yet)
@@ -80,10 +86,16 @@ def getDailyPnL(sortedTheDates, sortedVIXFutureListDict, futureName, deltaTarget
                        vixFuturePnLCumSum.append(vixFuturePnLCumSum[-1])
                    totalPnL.append(Decimal(optionPnL[-1]) + Decimal(vixFuturePnL[-1]))
                    totalPnLCumSum.append(Decimal(optionPnLCumSum[-1]) + Decimal(vixFuturePnLCumSum[-1]))
+                   if numOptionContracts == 0:
+                      strikeUsedPnL.append(0)
+                   else:
+                      strikeUsedPnL.append(row[2])
+                   spotVix.append(row[11])
+                   optionPositionList.append(numOptionContracts)
                    if sortedVIXFutureListDict[dateRowKey] < row[11]:
                        numOptionContracts = 0 # close the position when VixFuture level falls below spot VIX
-                   elif numOptionContracts == 0 and  sortedVIXFutureListDict[dateRowKey] >= row[11]: # we put the position back on
-                       return counter, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL
+                   elif numOptionContracts == 0 and  (sortedVIXFutureListDict[dateRowKey] - row[11]) > 3: # we put the position back on
+                       return counter+1, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, spotVix
                        
                counter = counter + 1
                previousRow = row
@@ -102,4 +114,4 @@ def getDailyPnL(sortedTheDates, sortedVIXFutureListDict, futureName, deltaTarget
 ##    print('vixFuturePnLCumSum')
 ##    for row in vixFuturePnLCumSum:
 ##        print(row)        
-    return counter, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL
+    return counter, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, spotVix
