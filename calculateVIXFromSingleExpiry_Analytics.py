@@ -14,6 +14,7 @@ con = mdb.connect(host="localhost",user="root",
 #deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
 deltaTargetList = [0.7]
 printToFile = False
+calcVix = True
 # VIX Future Name, VIX Future Expiry, SPX Option Expiry
 #VIXFutureOptionExpiryLists = [['X (Nov 10)','2010-11-17','2010-12-18']]
 VIXFutureOptionExpiryLists = (
@@ -223,7 +224,7 @@ for deltaTarget in deltaTargetList:
                     #quoteDateKey = '2009-06-25'
                     #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
-                    if printToFile:
+                    if calcVix:
                         iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, 0.01, False))
                     else:
                         iList.append(0)
@@ -386,7 +387,10 @@ for deltaTarget in deltaTargetList:
                 totalPnLCumSum = []
                 strikeUsedPnL = []
                 optionPositionList = []
-                spotVix = []
+                vixOpn = []
+                vixHigh = []
+                vixLow = []
+                vixClos = []
                 print(str(len(strikeXD)))
                
                 for i in range(strikeChoice):
@@ -398,9 +402,12 @@ for deltaTarget in deltaTargetList:
                     totalPnLCumSum.append(0)
                     strikeUsedPnL.append(0)
                     optionPositionList.append(0)
-                    spotVix.append(0)
-                while strikeChoice < len(strikeXD):
-                    strikeChoice, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, spotVix = getDailyPnL(sortedTheDates[strikeChoice-1:], sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeXD, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, spotVix)
+                    vixOpn.append(0)
+                    vixHigh.append(0)
+                    vixLow.append(0)
+                    vixClos.append(0)
+                while strikeChoice < len(strikeXD)-1:
+                    strikeChoice, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, vixOpn, vixHigh, vixLow, vixClos  = getDailyPnL(sortedTheDates[strikeChoice-1:], sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeXD, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, vixOpn, vixHigh, vixLow, vixClos)
                     print('Looped')
                     print(str(strikeChoice))
 ##                print('optionPositionList')
@@ -460,8 +467,8 @@ for deltaTarget in deltaTargetList:
             # output to  textfile
             book = xlwt.Workbook()
             sheet1 = book.add_sheet(futureName)
-            listOfOutputsNames = ['Date', 'CalcVix', 'VixFuture']
-            listOfOutputs = [sortedTheDates, sortedCalcVIXList, sortedVIXFutureList]
+            listOfOutputsNames = ['Date', 'CalcVix', 'strikeUsedPnL', 'optionPositionList', 'VixFuture', 'vixOpn', 'vixHigh', 'vixLow', 'vixClos', 'vixFuturePnL', 'vixFuturePnLCumSum', 'optionPnL', 'optionPnLCumSum', 'totalPnL', 'totalPnLCumSum']
+            listOfOutputs = [sortedTheDates, sortedCalcVIXList, strikeUsedPnL, optionPositionList, sortedVIXFutureList, vixOpn, vixHigh, vixLow, vixClos, vixFuturePnL, vixFuturePnLCumSum, optionPnL, optionPnLCumSum, totalPnL, totalPnLCumSum]
 ##            print(listOfOutputs)
 ##            print(listOfOutputs[1])
 ##            sys.exit(0)
@@ -518,7 +525,7 @@ for deltaTarget in deltaTargetList:
             book.save("singleExpiryAnalytics_" + now.strftime("%Y-%m-%d") + ".xls")
 ##            for trow in sorted(theDates, key=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d")):
 ##                print(trow)
-            sys.exit(0)
+            #sys.exit(0)
     now2 = datetime.datetime.now()       
     print('Done : ' + str(deltaTarget) + ' :' + str(now.strftime("%Y-%m-%d %H:%M")))
     pp.close()
