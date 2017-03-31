@@ -37,6 +37,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
         reader = csv.reader(f, delimiter=',')
         next(reader, None) # skip first line because it is the column headers
         for row in reader:
+            underlying_symbol = row[0]
             quote_dateTemp = row[1]
             quote_date = quote_dateTemp + " 15:45:00" # the datetime for greeks
             rootOriginal = row[2]
@@ -47,7 +48,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
             elif rootOriginal == "SPXW":
                 expiration = expirationTemp + " 15:00:00"
                 root = "SPXW"
-            elif rootOriginal == "VIX":
+            elif rootOriginal == "VIX" or underlying_symbol == "^VIX":
                 expiration = expirationTemp + " 08:30:00"
                 root = "VIX"
             else:
