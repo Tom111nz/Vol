@@ -51,6 +51,16 @@ Holidays.append(datetime.date(2017,9,4))
 Holidays.append(datetime.date(2017,11,23))
 Holidays.append(datetime.date(2017,12,25))
 
+Holidays.append(datetime.date(2018,1,1))
+Holidays.append(datetime.date(2018,1,15))
+Holidays.append(datetime.date(2018,2,19))
+Holidays.append(datetime.date(2018,5,28))
+Holidays.append(datetime.date(2018,7,4))
+Holidays.append(datetime.date(2018,9,3))
+Holidays.append(datetime.date(2018,11,22))
+Holidays.append(datetime.date(2018,12,25))
+
+
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol")
 
