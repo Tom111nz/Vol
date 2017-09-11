@@ -225,7 +225,8 @@ for deltaTarget in deltaTargetList:
                     #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
                     if calcVix:
-                        iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, 0.01, False))
+                        interpolatedYield = interpolateUSYield(quoteDate, optionExpiryDatetime)
+                        iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, interpolatedYield, False))
                     else:
                         iList.append(0)
                     iList.append(underlyingBid)
