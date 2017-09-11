@@ -20,12 +20,15 @@ thirtyDaysInMinutes = 30*24*60
 oneYearInMinutes = 365*24*60
 timeScaler = thirtyDaysInMinutes / oneYearInMinutes
 now = datetime.datetime.now()
-nowStr = now.strftime("%Y-%m-%d")
+nowPlus2 = now + datetime.timedelta(days=2) # due to time difference and time for CBOE to load file
+nowPlus2Str = nowPlus2.strftime("%Y-%m-%d")
 
 cur = con.cursor()
-cur.execute("select * from VIXFuturesExpiry where impliedrate = -1 and expiryDate < " + nowStr + " order by expirydate desc")
+cur.execute("select * from VIXFuturesExpiry where impliedrate = -1 and expiryDate < '" + nowPlus2Str + "' order by expirydate desc")
 rawExpiry = cur.fetchall()
 cur.close()
+
+print('There are ' + str(rawExpiry.__len__()) + ' expiries to calculate.')
 
 for row in rawExpiry:
     temp = row[1]
@@ -68,12 +71,12 @@ for row in rawExpiry:
                     maxRate = max(rateList)
                     minRate = min(rateList)
                     meanRate = sum(rateList) / len(rateList)
-                    print(maxRate)
-                    print(minRate)
-                    print(meanRate)
-                    # don't insert if difference is greater than 0.001 ?
+                    print('maxRate: ' + str(maxRate))
+                    print('minRate: ' + str(minRate))
+                    print('meanRate: ' + str(meanRate))
+                    # don't insert if difference is greater than 0.001
                     if abs(maxRate - minRate) < 0.001:
-                        print("update VIXFuturesExpiry set impliedrate = "'"%s"'"  where contract = "'"%s"'"" % (meanRate, row[0]))
+                        #print("update VIXFuturesExpiry set impliedrate = "'"%s"'"  where contract = "'"%s"'"" % (meanRate, row[0]))
                         cur = con.cursor()
                         cur.execute("update VIXFuturesExpiry set impliedrate = "'"%s"'"  where contract = "'"%s"'"" % (meanRate, row[0]))
                         con.commit()
@@ -83,8 +86,6 @@ for row in rawExpiry:
                         print("Tolerance is 0.001. No insert made to database. You need to fix this and work out why the difference between maxRate and minRate is so large")
                         for rowI in rateList:
                             print(rowI)
-                    # put these values in the database. Add columns to VixFutureExpiry table and populate. Need to make initial SQL query dynamic (use current month?)
-                    break
                 else:
                     print("length of rateList is zero for "'"%s"'"" % str(row[0]))
                     print("No insert made to database. You need to fix this and work out why the length of rateList is zero")
