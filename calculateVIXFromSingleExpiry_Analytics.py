@@ -2,6 +2,7 @@ import MySQLdb as mdb
 import sys
 import datetime
 from calculateVIXFromSingleExpiry import calculateVIXFromSingleExpiry
+from InterpolateUSYield import interpolateUSYield
 from GetDeltaThroughTime import getDeltaThroughTime
 from getDailyPnL import getDailyPnL
 import matplotlib.pyplot as plt
@@ -162,7 +163,7 @@ VIXFutureOptionExpiryLists = (
 ('X (Nov 17)','2017-11-15','2017-12-15'),
 ('Z (Dec 17)','2017-12-20','2018-01-19')
 )
-
+VIXFutureOptionExpiryLists = (('Q (Aug 17)','2017-08-16','2017-09-15'),('Q (Aug 17)','2017-08-16','2017-09-15'))
 ##class VIXAnalytics:
 ##    def __init__(self, name, futureExpiryDate):
 ##        self.name = name
@@ -186,7 +187,7 @@ VIXFutureOptionExpiryLists = (
 now = datetime.datetime.now()
 # Loop through deltas
 for deltaTarget in deltaTargetList:
-    pp = PdfPages('Analytics_' + str(now.strftime("%Y-%m-%d")) + '_' + str(deltaTarget) + '.pdf') 
+    pp = PdfPages('Analytics_ActualYield_' + str(now.strftime("%Y-%m-%d")) + '_' + str(deltaTarget) + '.pdf') 
 # Loop through VIX Futures
     for row in VIXFutureOptionExpiryLists:
         
@@ -225,7 +226,11 @@ for deltaTarget in deltaTargetList:
                     #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
                     if calcVix:
-                        interpolatedYield = interpolateUSYield(quoteDate, optionExpiryDatetime)
+                        try:
+                            interpolatedYield = interpolateUSYield(quoteDate, optionExpiryDatetime)
+                        except:
+                            interpolatedYield = 0.01
+                            print('Error: interpolatedYield = 0.01 ' + optionExpiryString + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
                         iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, interpolatedYield, False))
                     else:
                         iList.append(0)

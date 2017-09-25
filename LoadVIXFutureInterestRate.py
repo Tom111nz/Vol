@@ -20,7 +20,7 @@ thirtyDaysInMinutes = 30*24*60
 oneYearInMinutes = 365*24*60
 timeScaler = thirtyDaysInMinutes / oneYearInMinutes
 now = datetime.datetime.now()
-nowPlus2 = now + datetime.timedelta(days=2) # due to time difference and time for CBOE to load file
+nowPlus2 = now + datetime.timedelta(days=-2) # due to time difference and time for CBOE to load file
 nowPlus2Str = nowPlus2.strftime("%Y-%m-%d")
 
 cur = con.cursor()
