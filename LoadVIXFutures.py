@@ -95,7 +95,7 @@ for v in VIXFutureList:
         rawExpiry = cur.fetchone()
         cur.close()
         if rawExpiry is None:
-            print("No expiry in VIXFuturesExpiry for "'%s'": ending this programme ..." % firstRowContract)
+            print("No expiry in VIXFuturesExpiry for "'%s'": Go to http://www.cboe.com/delayedquote/futures-quotes ... ending this programme ..." % firstRowContract)
             break
         ExpiryDate = rawExpiry[0]
         lastRowTradeDate1 = dateutil.parser.parse(my_list[-1][0])
