@@ -82,9 +82,10 @@ def getDeltaThroughTime(expiration, deltaTarget, optionType):
     closestXDStrike = df.loc[idxX, strikeDataRawHeaders]
     ## output to csv
     ##closest50DStrike.to_csv('tester.csv', sep=' ')
-    ##closest70DStrike.to_csv('tester70.csv', sep=' ')
-##    for key, value in closest70DStrike.set_index('quote_raw').T.to_dict('list').items():
+    closestXDStrike.to_csv('tester70.csv', sep=' ')
+##    for key, value in closestXDStrike.set_index('quote_raw').T.to_dict('list').items():
+##        print(key)
 ##        print(value)
-##    print('######### exit function')
+    print('######### exit function')
     #return closest70DStrike.set_index('quote_raw')['mid'].to_dict()
     return closestXDStrike.set_index('quote_raw').T.to_dict('list')

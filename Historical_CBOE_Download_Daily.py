@@ -8,7 +8,7 @@ from LoadCBOEoptions import insertVolData
 from Historical_CBOE_Download import getbinary
 
 ## enter new file name here
-zipfilename = 'UnderlyingOptionsEODCalcs_2017-08-21.zip' 
+zipfilename = 'UnderlyingOptionsEODCalcs_2018-03-15.zip' 
 ##
 
 directory = 'ftp.datashop.livevol.com'
@@ -19,7 +19,7 @@ ftp = FTP(directory)   # connect to host, default port
 
 ftp.login(user=userName, passwd=password)
 ##ftp.cwd("/order_609/UnderlyingOptionsEODCalcs/") # navigate to the directory for historical data
-ftp.cwd("subscriptions/UnderlyingOptionsEODCalcs_OneYearSubscription/") # annual subscription
+ftp.cwd("subscriptions/order_000003058/item_000004473/") # annual subscription
 ftp.set_pasv(False)
 
 con = mdb.connect(host="localhost",user="root",

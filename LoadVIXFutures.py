@@ -52,14 +52,31 @@ Holidays.append(datetime.date(2017,11,23))
 Holidays.append(datetime.date(2017,12,25))
 
 Holidays.append(datetime.date(2018,1,1))
-Holidays.append(datetime.date(2018,1,15))
-Holidays.append(datetime.date(2018,2,19))
-Holidays.append(datetime.date(2018,5,28))
-Holidays.append(datetime.date(2018,7,4))
-Holidays.append(datetime.date(2018,9,3))
-Holidays.append(datetime.date(2018,11,22))
-Holidays.append(datetime.date(2018,12,25))
+Holidays.append(datetime.date(2018,1,15)) ## Martin Luther
+Holidays.append(datetime.date(2018,2,19)) ## Presidents
+Holidays.append(datetime.date(2018,5,28)) ## Memorial
+Holidays.append(datetime.date(2018,7,4))  ## Independence
+Holidays.append(datetime.date(2018,9,3))  ## Labor
+Holidays.append(datetime.date(2018,11,22))## Thankgiving
+Holidays.append(datetime.date(2018,12,25))## Christmas
 
+Holidays.append(datetime.date(2019,1,1))
+Holidays.append(datetime.date(2019,1,21))
+Holidays.append(datetime.date(2019,2,18))
+Holidays.append(datetime.date(2019,5,27))
+Holidays.append(datetime.date(2019,7,4))
+Holidays.append(datetime.date(2019,9,2))
+Holidays.append(datetime.date(2019,11,28))
+Holidays.append(datetime.date(2019,12,25))
+
+Holidays.append(datetime.date(2020,1,1))
+Holidays.append(datetime.date(2020,1,20))
+Holidays.append(datetime.date(2020,2,17))
+Holidays.append(datetime.date(2020,5,25))
+Holidays.append(datetime.date(2020,7,4))
+Holidays.append(datetime.date(2020,9,7))
+Holidays.append(datetime.date(2020,11,26))
+Holidays.append(datetime.date(2020,12,25))
 
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol")

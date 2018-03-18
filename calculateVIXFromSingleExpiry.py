@@ -10,6 +10,8 @@ from Replicate_VIX_Calculation import outputDictionary, f, isolateStrikes, calcu
 import sys
 
 def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResults=False):
+    if printResults:
+        print('calculateVIXFromSingleExpiry: quote_date: ' + str(quote_date))
     # connect to db
     con = mdb.connect(host="localhost",user="root",
                       passwd="password",db="Vol")
@@ -59,6 +61,12 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
             skipThisRow = 1
         else:
             expiryListWithoutZeroCallAndPutBid.append(aList)
+        ## debug purposes
+##        if key == '2435.0':
+##            print('Found Key!')
+##            for x in range(0, 6):
+##                print(str(value[x]))
+##            sys.exit(0)
     expiryListSorted = sorted(expiryList, key=lambda student: student[f("strike")], reverse=False)
     expiryListWithoutZeroCallAndPutBidSorted = sorted(expiryListWithoutZeroCallAndPutBid, key=lambda student: student[f("strike")], reverse=False)
     if printResults:
@@ -101,6 +109,9 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
         print(expiryPutListZeroBidChecked)
     # Calls
     expiryCallList = [t for t in expiryListSorted if t[f("strike")] > expiryK0Strike] # get all strikes above K0, starting with strike immediately above K0 and increasing
+    if printResults:
+        print('expiryCallList')
+        print(expiryCallList)
     countZeroBidPrices = 0
     expiryCallListZeroBidChecked = list()
     expiryCallListZeroBidChecked = isolateStrikes(expiryCallList, "c_bid", countZeroBidPrices)

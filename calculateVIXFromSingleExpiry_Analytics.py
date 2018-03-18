@@ -14,8 +14,9 @@ con = mdb.connect(host="localhost",user="root",
 
 #deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
 deltaTargetList = [0.7]
-printToFile = False
+printToFile = True
 calcVix = True
+calculateVIXFromSingleExpiry_PrintResults = False
 # VIX Future Name, VIX Future Expiry, SPX Option Expiry
 #VIXFutureOptionExpiryLists = [['X (Nov 10)','2010-11-17','2010-12-18']]
 VIXFutureOptionExpiryLists = (
@@ -163,7 +164,7 @@ VIXFutureOptionExpiryLists = (
 ('X (Nov 17)','2017-11-15','2017-12-15'),
 ('Z (Dec 17)','2017-12-20','2018-01-19')
 )
-VIXFutureOptionExpiryLists = (('Q (Aug 17)','2017-08-16','2017-09-15'),('Q (Aug 17)','2017-08-16','2017-09-15'))
+VIXFutureOptionExpiryLists = (('Q (Aug 17)','2017-08-16','2017-09-15'),('X (Nov 17)','2017-11-15','2017-12-15'))
 ##class VIXAnalytics:
 ##    def __init__(self, name, futureExpiryDate):
 ##        self.name = name
@@ -207,7 +208,45 @@ for deltaTarget in deltaTargetList:
         cur.execute(sqlQuery)
         quoteDatesOptionsRaw = cur.fetchall()
         cur.close()
-        # print(VIXAnalyticsClass.vixFutureExpiryDate + ":" + VIXAnalyticsClass.optionExpiryDate + ":" + str(len(quoteDatesRaw)))
+        print(sqlQuery)
+        # Now get actual VIXFuture close for each day (if possible)
+        sqlQuery = ('select TradeDate, Settle from VIXFutures '
+                    'where contract = '"'%s'"' '
+                    'order by TradeDate asc;' % futureName)
+        cur = con.cursor()
+        cur.execute(sqlQuery)
+        VIXFuturesDataRaw = cur.fetchall()
+        cur.close()
+        print(sqlQuery)
+        VIXFuturesDataRawDict = {}
+        for row in VIXFuturesDataRaw:
+            VIXFuturesDataRawDict[datetime.datetime.strftime(row[0], "%Y-%m-%d")] = row[1]
+##        for i in VIXFuturesDataRawDict.keys():
+##            print(str(i))
+##            print(str(VIXFuturesDataRawDict[i]))
+##            print(str(VIXFuturesDataRawDict['2016-11-21']))
+##        sys.exit(0)
+        # now get the VIX details for the period
+        sqlQuery = ('select TradeDate, Opn, High, Low, Clos from VIX '
+        'where tradeDate >= (select left(min(quote_date), 10) from optionexpiry where root in ("SPX") and expiration = '"'%s'"' ) ' % optionExpiryString)
+        cur = con.cursor()
+        cur.execute(sqlQuery)
+        VIXDataRaw = cur.fetchall()
+        cur.close()
+        VIXDataRawDict = {}
+        for row in VIXDataRaw:
+            aList = list()
+            aList.append(row[1])
+            aList.append(row[2])
+            aList.append(row[3])
+            aList.append(row[4])
+            VIXDataRawDict[datetime.datetime.strftime(row[0], "%Y-%m-%d")] = aList
+        # Now get information on the strike nearest to the X delta each day
+        if deltaTarget > 0.5:
+            optionType = 'p'
+        else:
+            optionType = 'c'
+        deltaXDict = getDeltaThroughTime(optionExpiryString, deltaTarget, optionType)
         
         # Now calculate VIX using optionExpiry for each day
         dailyValuesDict = {}
@@ -231,16 +270,59 @@ for deltaTarget in deltaTargetList:
                         except:
                             interpolatedYield = 0.01
                             print('Error: interpolatedYield = 0.01 ' + optionExpiryString + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
-                        iList.append(calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, interpolatedYield, False))
+                        aVIX = calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, interpolatedYield, calculateVIXFromSingleExpiry_PrintResults)
+                    else:
+                        aVIX = 0.0
+                    iList.append(aVIX)
+                    iList.append(underlyingBid)
+                    # add the VIX Futures data
+                    if quoteDateKey in VIXFuturesDataRawDict:
+                        VIXFuturesDataRawDay = VIXFuturesDataRawDict[quoteDateKey]
+                         # scale VIX futures data from 23-Mar-2007 and earlier
+                        if datetime.datetime.strptime(quoteDateKey, "%Y-%m-%d") <= datetime.datetime(2007, 3, 23):
+                            iList.append(VIXFuturesDataRawDay/10.0)
+                        else:
+                            iList.append(VIXFuturesDataRawDay) # add the VIX futures settle for that day
+                    else:
+                        iList.append(0.0) # happens most frequently when VIX future has not yet started trading
+                    # add the raw VIX data
+                    if quoteDateKey in VIXDataRawDict:
+                        vixList = VIXDataRawDict[quoteDateKey]
+                        iList.append(vixList[0])
+                        iList.append(vixList[1])
+                        iList.append(vixList[2])
+                        iList.append(vixList[3])
                     else:
                         iList.append(0)
-                    iList.append(underlyingBid)
-                    #print('added: ' + str(quoteDateKey))
+                        iList.append(0)
+                        iList.append(0)
+                        iList.append(0)
+                    # add the deltaXDict data
+                    if quoteDateKey in deltaXDict:
+                        deltaList = deltaXDict[quoteDateKey]
+                        iList.append(deltaList[1])
+                        iList.append(deltaList[2])
+                        iList.append(deltaList[3])
+                        iList.append(deltaList[4])
+                        iList.append(deltaList[5])
+                        iList.append(deltaList[6])
+                        iList.append(deltaList[7])
+                        iList.append(deltaList[8])
+                        iList.append(deltaList[9])
+                    else:
+                        iList.append(0.0)
+                        iList.append(0.0)
+                        iList.append(0.0)
+                        iList.append(0.0)
+                        iList.append(0.0)
+                        iList.append(0.0)
+                        iList.append(0.0)
+                        iList.append(0.0)
+                        iList.append(0.0)
                     dailyValuesDict[quoteDateKey] = iList
                 else:
                     print('skipping same date :' + optionExpiryString + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
             except Exception as inst:
-                tsar = 8
                 print('error here')
                 print(type(inst))    # the exception instance
                 print(inst.args)     # arguments stored in .args
@@ -250,6 +332,18 @@ for deltaTarget in deltaTargetList:
                 print('y =', y)
     ##            print(str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
     ##            print(VIXAnalyticsClass.optionExpiryDate)
+        sortedKeys = sorted(dailyValuesDict.keys())
+        print(len(dailyValuesDict))
+        for row in sortedKeys:
+            print(row)
+            print(dailyValuesDict[row])
+        sys.exit(0)
+
+        ## The data we now have in dailyValuesDict is:
+        ## [calculatedVIX, underling bid, VIX Future settle, Vix Opn, Vix High, Vix Low, Vix Clos,
+        ## 'strike', 'option_type', 'delta', 'bid', 'ask', 'mid', 'imp_vol', 'vega', 'deltalessX']
+
+        
 ##        counti = 0
 ##        for row in dailyValuesDict.items():
 ##            counti = counti + 1
@@ -260,47 +354,38 @@ for deltaTarget in deltaTargetList:
         #VIXFutureDict[key].calculatedVIX = aDict
         #print("Done: " + key + " : " + str(len(dailyValuesDict)))
                 
-        # Now get actual VIXFuture close for each day (if possible)
-        sqlQuery = ('select TradeDate, Settle from VIXFutures '
-                    'where contract = '"'%s'"' '
-                    'order by TradeDate asc;' % futureName)
-        cur = con.cursor()
-        print(sqlQuery)
-        cur.execute(sqlQuery)
-        VIXFuturesDataRaw = cur.fetchall()
-        cur.close()
+
         #print('Check Key')
     ##    for keys, value in dailyValuesDict.items():
     ##        print('Key2: ' + str(keys))
         #print('Running VIXFuturesDataRaw')
-        for row in VIXFuturesDataRaw:
-            keyz = str(row[0])
-            #print('keyz: ' + str(keyz))
-            
-            if keyz in dailyValuesDict:
-                #print('############### found key!')
-                aList = dailyValuesDict[keyz] # get the calculatedVIX and underlying bid for the day
-                aList.append(row[1]) # add the VIX future for that day
-                del dailyValuesDict[keyz]
-                dailyValuesDict[keyz] = aList
-            # if date (which is the key) not in dictionary, then ignore that date
-            
-        # Draw a graph
-        # VIXFutureDict[key].calculatedVIX = dailyValuesDict
+##        for row in VIXFuturesDataRaw:
+##            keyz = str(row[0])
+##            #print('keyz: ' + str(keyz))
+##            
+##            if keyz in dailyValuesDict:
+##                #print('############### found key!')
+##                aList = dailyValuesDict[keyz] # get the calculatedVIX and underlying bid for the day
+##                aList.append(row[1]) # add the VIX future settle for that day
+##                del dailyValuesDict[keyz]
+##                dailyValuesDict[keyz] = aList
+##            # if date (which is the key) not in dictionary, then ignore that date
+##            else:
+##                print('Found date in VIX Future that is not in the corresponding options data: ' & keyz)
 
         # Graphs
-        calcVixList = list()
-        VIXFutureList = list()
-        theDates = list()
-        underlyingList = list()
-        for keyx, value in dailyValuesDict.items():
-            theDates.append(keyx)
-            calcVixList.append(value[0])
-            underlyingList.append(value[1])
-            if len(value) > 2:
-                VIXFutureList.append(value[2])
-            else:
-                VIXFutureList.append(0.0)
+##        calcVixList = list()
+##        VIXFutureList = list()
+##        theDates = list()
+##        underlyingList = list()
+##        for keyx, value in dailyValuesDict.items():
+##            theDates.append(keyx)
+##            calcVixList.append(value[0])
+##            underlyingList.append(value[1])
+##            if len(value) > 2:
+##                VIXFutureList.append(value[2])
+##            else:
+##                VIXFutureList.append(0.0) ## here we are just adding a value of zero for the VIX future, if no settle value exists (like when it has not started trading yet)
         # sort
         if len(calcVixList) > 1:
             iZipped = zip(theDates, calcVixList, VIXFutureList, underlyingList) # make sure everything is sorted by Date
@@ -381,6 +466,11 @@ for deltaTarget in deltaTargetList:
                         strikeXD.append(deltaXDict[row][1])
 ##                print(str(len(sortedCalcVIXList)))
 ##                print(str(len(deltaXDScaled)))
+##                print("Print strikeXD")
+##                for row in strikeXD:
+##                    print(row)
+##                sys.exit(0)
+                        
                 ## Daily PnL
                 strikeChoice = 1 # the index number of the strike we choose (0 is the first). We would wait 2 days to let it settle before trading it, so use 1.
                 numOptionContracts = -1 # -1 is short 1
@@ -397,7 +487,13 @@ for deltaTarget in deltaTargetList:
                 vixHigh = []
                 vixLow = []
                 vixClos = []
+                optionAskTheo = []
                 print(str(len(strikeXD)))
+
+                ## loop through everydate we have data for the relevant option expiry
+                for row in sortedTheDates:
+                    todaysDate = row[0]
+                    ## 
                
                 for i in range(strikeChoice):
                     optionPnL.append(0.0)
@@ -412,16 +508,23 @@ for deltaTarget in deltaTargetList:
                     vixHigh.append(0)
                     vixLow.append(0)
                     vixClos.append(0)
+                    optionAskTheo.append(0)
+                print("strikeChoice")
+                print(str(strikeChoice))
+                print(str(len(strikeXD)-1))
                 while strikeChoice < len(strikeXD)-1:
-                    strikeChoice, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, vixOpn, vixHigh, vixLow, vixClos  = getDailyPnL(sortedTheDates[strikeChoice-1:], sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeXD, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, vixOpn, vixHigh, vixLow, vixClos)
+                    optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, vixOpn, vixHigh, vixLow, vixClos, optionAskTheo  = getDailyPnL(sortedTheDates[strikeChoice-1:], sortedVIXFutureListDict, futureName, deltaTarget, optionExpiryString, optionType, strikeXD, strikeChoice, numOptionContracts, optionPointValue, optionPnL, optionPnLCumSum, vixFuturePnL, vixFuturePnLCumSum, totalPnL, totalPnLCumSum, strikeUsedPnL, optionPositionList, vixOpn, vixHigh, vixLow, vixClos, sortedCalcVIXList, optionAskTheo)
                     print('Looped')
+                    numOptionContracts = optionPositionList[-1]
+                    strikeChoice = strikeChoice + 1
                     print(str(strikeChoice))
+                    print(str(numOptionContracts))
 ##                print('optionPositionList')
 ##                for row in optionPositionList:
 ##                    print(row)
 ##                for row in strikeUsedPnL:
 ##                    print(row)
-##                sys.exit(0)
+                ##sys.exit(0)
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
                 xAxis = range(len(optionPnLCumSum))
@@ -473,8 +576,8 @@ for deltaTarget in deltaTargetList:
             # output to  textfile
             book = xlwt.Workbook()
             sheet1 = book.add_sheet(futureName)
-            listOfOutputsNames = ['Date', 'CalcVix', 'strikeUsedPnL', 'optionPositionList', 'VixFuture', 'vixOpn', 'vixHigh', 'vixLow', 'vixClos', 'vixFuturePnL', 'vixFuturePnLCumSum', 'optionPnL', 'optionPnLCumSum', 'totalPnL', 'totalPnLCumSum']
-            listOfOutputs = [sortedTheDates, sortedCalcVIXList, strikeUsedPnL, optionPositionList, sortedVIXFutureList, vixOpn, vixHigh, vixLow, vixClos, vixFuturePnL, vixFuturePnLCumSum, optionPnL, optionPnLCumSum, totalPnL, totalPnLCumSum]
+            listOfOutputsNames = ['Date', 'CalcVix', 'strikeUsedPnL', 'optionPositionList', 'optionAskTheo', 'VixFuture', 'vixOpn', 'vixHigh', 'vixLow', 'vixClos', 'vixFuturePnL', 'vixFuturePnLCumSum', 'optionPnL', 'optionPnLCumSum', 'totalPnL', 'totalPnLCumSum']
+            listOfOutputs = [sortedTheDates, sortedCalcVIXList, strikeUsedPnL, optionPositionList, optionAskTheo, sortedVIXFutureList, vixOpn, vixHigh, vixLow, vixClos, vixFuturePnL, vixFuturePnLCumSum, optionPnL, optionPnLCumSum, totalPnL, totalPnLCumSum]
 ##            print(listOfOutputs)
 ##            print(listOfOutputs[1])
 ##            sys.exit(0)
@@ -531,7 +634,7 @@ for deltaTarget in deltaTargetList:
             book.save("singleExpiryAnalytics_" + now.strftime("%Y-%m-%d") + ".xls")
 ##            for trow in sorted(theDates, key=lambda x: datetime.datetime.strptime(x, "%Y-%m-%d")):
 ##                print(trow)
-            #sys.exit(0)
+            sys.exit(0)
     now2 = datetime.datetime.now()       
     print('Done : ' + str(deltaTarget) + ' :' + str(now.strftime("%Y-%m-%d %H:%M")))
     pp.close()

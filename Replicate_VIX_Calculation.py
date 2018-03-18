@@ -29,7 +29,7 @@ def outputDictionary(aDict, strike, option_type, bid, avgBidAsk, impVol):
         # Get the value list from dictionary 
         aValues = aDict.get(str(strike[i]))
         # Populate the list
-        if option_type[i] == 'c':
+        if option_type[i] == 'c' or option_type[i] == 'C' :
             aValues[0] = bid[i]
             aValues[1] = avgBidAsk[i]
             aValues[2] = impVol[i]
@@ -40,6 +40,11 @@ def outputDictionary(aDict, strike, option_type, bid, avgBidAsk, impVol):
         # repopulate the dictionary
         aValues[6] = abs(aValues[1] - aValues[4]) # absolute of call - put at strike
         aDict[str(strike[i])] = aValues
+####        if math.fabs(strike[i] - 2435.0) < 0.0000000001:
+####            bValues = aDict.get(str(strike[i]))
+####            print('Found strike 2435.0')
+####            for z in range(0, len(bValues)):
+####                print(bValues[z])
     return aDict # key: strike, value: [c_bid, c_avgBidAsk, c_impVol, p_bid, p_avgBidAsk, p_impVol, c_avgBidAsk - p_avgBidAsk]
 
 # set up fetching dictionary
