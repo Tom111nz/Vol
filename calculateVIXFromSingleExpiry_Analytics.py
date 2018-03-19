@@ -8,6 +8,7 @@ from getDailyPnL import getDailyPnL
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import xlwt
+from decimal import *
 
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol")
@@ -332,17 +333,81 @@ for deltaTarget in deltaTargetList:
                 print('y =', y)
     ##            print(str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
     ##            print(VIXAnalyticsClass.optionExpiryDate)
-        sortedKeys = sorted(dailyValuesDict.keys())
-        print(len(dailyValuesDict))
-        for row in sortedKeys:
-            print(row)
-            print(dailyValuesDict[row])
-        sys.exit(0)
+##        sortedKeys = sorted(dailyValuesDict.keys())
+##        print(len(dailyValuesDict))
+##        for row in sortedKeys:
+##            print(row)
+##            print(dailyValuesDict[row])
+        
 
-        ## The data we now have in dailyValuesDict is:
+        ## The data we now have in dailyValuesDict is (key is date):
         ## [calculatedVIX, underling bid, VIX Future settle, Vix Opn, Vix High, Vix Low, Vix Clos,
         ## 'strike', 'option_type', 'delta', 'bid', 'ask', 'mid', 'imp_vol', 'vega', 'deltalessX']
-
+        sortedKeys = sorted(dailyValuesDict.keys())
+        dailyOptionPnl = list()
+        cumOptionPnl = list()
+        dailyVixFuturePnl = list()
+        cumVixFuturePnl = list()
+        dailyPnl = list()
+        cumDailyPnl = list()
+        optionPosition = list()
+        vixFuturePosition = list()
+        optionTheo = list()
+        dateList = list()
+        pnlDict = {}
+        currentOptionPosition = 99 # to show we have no position
+        for u, row in enumerate(sortedKeys[2:]):
+            todayData = dailyValuesDict[row]
+            yesterdayData = dailyValuesDict[sortedKeys[u-1]]
+                           
+            if currentOptionPosition == 99:
+                currentOptionPosition = -1 # start with a short option position
+                dailyOptionTheo = todayData[11] 
+                dailyOptionPnl = -(dailyOptionTheo * currentOptionPosition * 100)
+            else:
+                if optionPosition[-1] == -1 and todayData[4] > todayData[2] and todayData[2] > 0: # criteria to close short
+                    dailyOptionTheo = todayData[12]                   
+                    dailyOptionPnl = (dailyOptionTheo - yesterdayData[11]) * currentOptionPosition * 100
+                    currentOptionPosition = 0
+                elif optionPosition[-1] == 0 and todayData[4] > todayData[2] and todayData[2] > 0: # criteria to put short back on:
+                    currentOptionPosition = -1
+                    dailyOptionTheo = todayData[11] 
+                    dailyOptionPnl = -(dailyOptionTheo * currentOptionPosition * 100)
+                else: # keep current position (short or flat)
+                    currentOptionPosition = optionPosition[-1]
+                    dailyOptionTheo = todayData[12] 
+                    dailyOptionPnl = (dailyOptionTheo - yesterdayData[12]) * currentOptionPosition * 100
+            # VIX Future Position
+            if todayData[2] > 0:
+                currentVixFuturePosition = 1
+            else:
+                currentVixFuturePosition = 0
+            # VIX Future PnL
+            if currentVixFuturePosition == 1 and vixFuturePosition[-1] == 0:
+                dailyVixFuturePnl = -(todayData[2] * currentVixFuturePosition * 1000) ## buying the future
+            else:
+                dailyVixFuturePnl = (Decimal(todayData[2]) - Decimal(yesterdayData[2])) * currentVixFuturePosition * 1000
+            # Generics
+            dailyPnl = Decimal(dailyOptionPnl) + Decimal(dailyVixFuturePnl)                 
+            optionTheo.append(dailyOptionTheo)
+            optionPosition.append(currentOptionPosition)
+            vixFuturePosition.append(currentVixFuturePosition)
+            cumOptionPnl.append(dailyOptionPnl)
+            cumVixFuturePnl.append(dailyVixFuturePnl)
+            cumDailyPnl.append(dailyPnl)
+            ## May have to put into lists the variables of interest ?
+            dateList.append(row)
+            
+            book = xlwt.Workbook()
+            sheet1 = book.add_sheet(futureName)
+            listOfOutputsNames = ['Date']##, 'CalcVix', 'strikeUsedPnL', 'optionPositionList', 'optionAskTheo', 'VixFuture', 'vixOpn', 'vixHigh', 'vixLow', 'vixClos', 'vixFuturePnL', 'vixFuturePnLCumSum', 'optionPnL', 'optionPnLCumSum', 'totalPnL', 'totalPnLCumSum']
+            listOfOutputs = [dateList]##, sortedCalcVIXList, strikeUsedPnL, optionPositionList, optionAskTheo, sortedVIXFutureList, vixOpn, vixHigh, vixLow, vixClos, vixFuturePnL, vixFuturePnLCumSum, optionPnL, optionPnLCumSum, totalPnL, totalPnLCumSum]
+            for outer in range(0, len(listOfOutputsNames)):
+                sheet1.write(0, outer, listOfOutputsNames[outer])
+                for i,e in enumerate(listOfOutputs[outer]):
+                    sheet1.write(i+1,outer,e)
+        book.save("PnL_" + now.strftime("%Y-%m-%d") + ".xls")
+        sys.exit(0)
         
 ##        counti = 0
 ##        for row in dailyValuesDict.items():
