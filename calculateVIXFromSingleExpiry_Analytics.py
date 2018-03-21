@@ -376,6 +376,9 @@ for deltaTarget in deltaTargetList:
         imp_vol = list()
         vega = list()
         deltalessX = list()
+        decisionList = list()
+        dailyNaiveShortOptionPnlList = list()
+        cumNaiveShortOptionPnL = list()
         pnlDict = {}
         currentOptionPosition = 99 # to show we have no position       
         for u, row in enumerate(sortedKeys[1:]): # start at second row, we don't take position on first day of listing of option
@@ -386,19 +389,25 @@ for deltaTarget in deltaTargetList:
                 currentOptionPosition = -1 # start with a short option position
                 dailyOptionTheo = todayData[dKey['bid']] 
                 dailyOptionPnl = -(dailyOptionTheo * currentOptionPosition * 100)
+                dailyNaiveShortOptionPnl = dailyOptionPnl
+                decisionList.append('Open short position')
             else:
+                dailyNaiveShortOptionPnl = (todayData[dKey['bid']] - yesterdayData[dKey['bid']] ) * -1 * 100
                 if optionPosition[-1] == -1 and todayData[dKey['Vix High']] > todayData[dKey['VIX Future settle']] and todayData[dKey['VIX Future settle']] > 0: # criteria to close short
+                    decisionList.append('Close short position')
                     dailyOptionTheo = todayData[dKey['ask']]                   
-                    dailyOptionPnl = (dailyOptionTheo - yesterdayData[dKey['bid']]) * currentOptionPosition * 100
+                    dailyOptionPnl = (dailyOptionTheo * currentOptionPosition * 100)
                     currentOptionPosition = 0
                 elif optionPosition[-1] == 0 and todayData[dKey['Vix High']] < todayData[dKey['VIX Future settle']] and todayData[dKey['VIX Future settle']] > 0: # criteria to put short back on:
+                    decisionList.append('Reopen short position')
                     currentOptionPosition = -1
                     dailyOptionTheo = todayData[dKey['bid']] 
                     dailyOptionPnl = -(dailyOptionTheo * currentOptionPosition * 100)
                 else: # keep current position (short or flat)
-                    currentOptionPosition = optionPosition[-1]
+                    decisionList.append('Keep current position')
+                    #currentOptionPosition = optionPosition[-1]
                     dailyOptionTheo = todayData[dKey['ask']] 
-                    dailyOptionPnl = (dailyOptionTheo - yesterdayData[dKey['bid']]) * currentOptionPosition * 100
+                    dailyOptionPnl = (dailyOptionTheo - optionTheo[-1]) * currentOptionPosition * 100
             # VIX Future Position
             if todayData[dKey['VIX Future settle']] > 0:
                 currentVixFuturePosition = 1
@@ -406,7 +415,7 @@ for deltaTarget in deltaTargetList:
                 currentVixFuturePosition = 0
             # VIX Future PnL
             if currentVixFuturePosition == 1 and vixFuturePosition[-1] == 0:
-                dailyVixFuturePnl = -(todayData[dKey['VIX Future settle']] * currentVixFuturePosition * 1000) ## buying the future
+                dailyVixFuturePnl = 0#-(todayData[dKey['VIX Future settle']] * currentVixFuturePosition * 1000) ## buying the future
             else:
                 dailyVixFuturePnl = (Decimal(todayData[dKey['VIX Future settle']]) - Decimal(yesterdayData[dKey['VIX Future settle']])) * currentVixFuturePosition * 1000
             # Generics
@@ -417,14 +426,17 @@ for deltaTarget in deltaTargetList:
             dailyOptionPnlList.append(dailyOptionPnl)
             dailyVixFuturePnlList.append(dailyVixFuturePnl)
             dailyPnlList.append(dailyPnl)
+            dailyNaiveShortOptionPnlList.append(dailyNaiveShortOptionPnl)
             if u == 0:
                 cumOptionPnl.append(dailyOptionPnl)
                 cumVixFuturePnl.append(dailyVixFuturePnl)
                 cumDailyPnl.append(dailyPnl)
+                cumNaiveShortOptionPnL.append(dailyNaiveShortOptionPnl)
             else:
                 cumOptionPnl.append(dailyOptionPnl+ cumOptionPnl[-1])
                 cumVixFuturePnl.append(dailyVixFuturePnl+cumVixFuturePnl[-1])
                 cumDailyPnl.append(dailyPnl+cumDailyPnl[-1])
+                cumNaiveShortOptionPnL.append(dailyNaiveShortOptionPnl+cumNaiveShortOptionPnL[-1])
             ## May have to put into lists the variables of interest ?
             dateList.append(row)
             calculatedVIX.append(todayData[dKey['calculatedVIX']])
@@ -447,16 +459,21 @@ for deltaTarget in deltaTargetList:
             
         book = xlwt.Workbook()
         sheet1 = book.add_sheet(futureName)
-        listOfOutputsNames = ['Date', 'calculatedVIX', 'strike', 'optionPosition', 'optionTheo', 'vixFuturePosition', 'VIXFuturesettle', 'VixHigh', 'VixLow', 'VixClos', 'dailyVixFuturePnlList', 'cumVixFuturePnl', 'dailyOptionPnlList', 'cumOptionPnl', 'dailyPnlList', 'cumDailyPnl']
-        listOfOutputs = [dateList, calculatedVIX, strike, optionPosition, optionTheo, vixFuturePosition, VIXFuturesettle, VixHigh, VixLow, VixClos, dailyVixFuturePnlList, cumVixFuturePnl, dailyOptionPnlList, cumOptionPnl, dailyPnlList, cumDailyPnl]
+        listOfOutputsNames = ['Date', 'calculatedVIX', 'strike', 'optionPosition', 'decisionList', 'optionTheo', 'bid', 'ask', 'vixFuturePosition', 'VIXFuturesettle', 'VixHigh', 'VixLow', 'VixClos', 'dailyVixFuturePnlList', 'cumVixFuturePnl', 'dailyNaiveShortOptionPnlList', 'cumNaiveShortOptionPnL', 'dailyOptionPnlList', 'cumOptionPnl', 'dailyPnlList', 'cumDailyPnl']
+        listOfOutputs = [dateList, calculatedVIX, strike, optionPosition, decisionList, optionTheo, bid, ask, vixFuturePosition, VIXFuturesettle, VixHigh, VixLow, VixClos, dailyVixFuturePnlList, cumVixFuturePnl, dailyNaiveShortOptionPnlList, cumNaiveShortOptionPnL, dailyOptionPnlList, cumOptionPnl, dailyPnlList, cumDailyPnl]
         for outer in range(0, len(listOfOutputsNames)):
             sheet1.write(0, outer, listOfOutputsNames[outer])
             for i,e in enumerate(listOfOutputs[outer]):
                 sheet1.write(i+1,outer,e)
         book.save("PnL_" + now.strftime("%Y-%m-%d") + ".xls")
-        for h in range(len(VIXFuturesettle)):
-            print(VIXFuturesettle[h])
-        print('ending')
+
+        ## Next job
+        ## retain strike until need to re-hedge back to the actual 20d strike. Keep all columns and add new columns for the strike actually used, and its theo.
+        
+
+        ## do we need to include the Vix Future margining (or just assume we fund 22k for life of deal)? Or even XSP option margin.
+        ## http://cfe.cboe.com/framed/pdfframed?content=/publish/CFEMarginArchive/CFEMargins20180319.pdf&section=MARGINS&title=CFE+Margin+Update+-+March+19%2c+2018+%7c+Effective+-+March+21%2c+2018
+        
         sys.exit(0)
         
 ##        counti = 0
