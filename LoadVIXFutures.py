@@ -12,7 +12,23 @@ import sys
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
+
+def getVixFutureExpiry(futureDateCode):
+    cur = con.cursor()
+    sqlQuery = "select expiryDate from VIXFuturesExpiry where Contract = "'"%s"'"" % futureDateCode
+    cur.execute(sqlQuery)
+    res = cur.fetchone()
+    cur.close()
+    if res is None:
+        return None
+    else:
+        return res[0]
+
+con = mdb.connect(host="localhost",user="root",
+                  passwd="password",db="Vol")
+
 contractExpiries = ['F', 'G', 'H', 'J', 'K', 'M', 'N', 'Q', 'U', 'V', 'X', 'Z']
+contractExpiriesMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 now = datetime.datetime.now()
 
@@ -21,13 +37,29 @@ now = datetime.datetime.now()
 thisYear = str(now.year)
 VIXFutureList = list()
 
-for mon in contractExpiries[now.month -1:]:
-    aFile = 'http://cfe.cboe.com/Publish/ScheduledTask/MktData/datahouse/CFE_' + mon + thisYear[2:] + '_VX.csv'
-    VIXFutureList.append(aFile)
+for i, mon in enumerate(contractExpiries[now.month -1:]):
+    #aFile = 'http://cfe.cboe.com/Publish/ScheduledTask/MktData/datahouse/CFE_' + mon + thisYear[2:] + '_VX.csv'
+    #print(mon + ' (' + contractExpiriesMonths[now.month -1+i] + ' ' + thisYear[2:] + ')')
+    expiryDate = getVixFutureExpiry(mon + ' (' + contractExpiriesMonths[now.month -1+i] + ' ' + thisYear[2:] + ')')
+    if expiryDate is None:
+        break
+    else:
+        aFile = 'https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/' + str(expiryDate) #+ '/CFE_' + mon + thisYear[2:] + '_VX.csv'
+    #print(aFile)
+    #print('https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/2018-03-21/CFE_H18_VX.csv')
+    #sys.exit(0)
+    #https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/2018-04-18
+        VIXFutureList.append(aFile)
 nextYear = str(now.year + 1)
-for mon in contractExpiries:
-    aFile = 'http://cfe.cboe.com/Publish/ScheduledTask/MktData/datahouse/CFE_' + mon + nextYear[2:] + '_VX.csv'
-    VIXFutureList.append(aFile)
+for i, mon in enumerate(contractExpiries):
+    #aFile = 'http://cfe.cboe.com/Publish/ScheduledTask/MktData/datahouse/CFE_' + mon + nextYear[2:] + '_VX.csv'
+    expiryDate = getVixFutureExpiry(mon + ' (' + contractExpiriesMonths[i] + ' ' + nextYear[2:] + ')')
+    if expiryDate is None:
+        break
+    else:
+        aFile = 'https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/' + str(expiryDate) #+ '/CFE_' + mon + thisYear[2:] + '_VX.csv'
+
+        VIXFutureList.append(aFile)
 
 ## Holidays
 Holidays = list()
@@ -78,9 +110,6 @@ Holidays.append(datetime.date(2020,9,7))
 Holidays.append(datetime.date(2020,11,26))
 Holidays.append(datetime.date(2020,12,25))
 
-con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
-
 for v in VIXFutureList:
     with requests.Session() as s:
         try:
@@ -89,7 +118,7 @@ for v in VIXFutureList:
             print(v)
             print("Error1: Cannot get this file from CBOE webpage so we assume no subsequent files are available and we exit: 's%'" % v)
             sys.exit(0)
-        decoded_content = download.content.decode('utf-8')
+        decoded_content = download.content.decode('utf-8')#
         cr = csv.reader(decoded_content.splitlines(), delimiter=',')
         my_list = list()
         my_list = list(cr)
@@ -103,10 +132,13 @@ for v in VIXFutureList:
                 break
         BDInContract = my_list.__len__()
         BDCount = 0
-        startRow = 2
+        startRow = 1
+        #print(v)
+        #print(my_list[startRow])
         ## put in check for contract which has not expired
         firstRow = my_list[startRow]
-        firstRowContract = str(firstRow[1])
+        firstRowContract = str(firstRow[1]).replace(' 20', ' ') #28-Mar-18 due to data format change on cboe website
+        #print(firstRowContract)
         cur = con.cursor()
         cur.execute("SELECT ExpiryDate from VIXFuturesExpiry where Contract = "'"%s"'"" % firstRowContract)
         rawExpiry = cur.fetchone()
@@ -142,7 +174,7 @@ for v in VIXFutureList:
                     cur = con.cursor()
                     cur.execute('''INSERT into VIXFutures (TradeDate, Contract, Opn, High, Low, Clos, Settle, Chnge, Volume, EFP, OI, BDToExpiry, CDToExpiry)
                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], workdays.networkdays(rowDate, ExpiryDate, Holidays) -1, (ExpiryDate-rowDate).days))
+                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], workdays.networkdays(rowDate, ExpiryDate, Holidays) -1, (ExpiryDate-rowDate).days))
                     con.commit()
                     cur.close()
                 except (MySQLdb.Error, MySQLdb.Warning) as e:
@@ -166,7 +198,7 @@ for v in VIXFutureList:
                     cur = con.cursor()
                     cur.execute('''INSERT into VIXFutures (TradeDate, Contract, Opn, High, Low, Clos, Settle, Chnge, Volume, EFP, OI, BDToExpiry, CDToExpiry)
                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], BDInContract-BDCount-startRow, (ExpiryDate-rowDate).days))
+                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], BDInContract-BDCount-startRow, (ExpiryDate-rowDate).days))
                     con.commit()
                     cur.close()
                 except (MySQLdb.Error, MySQLdb.Warning) as e:
