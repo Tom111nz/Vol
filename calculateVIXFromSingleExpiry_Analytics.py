@@ -184,7 +184,10 @@ def getdeltaForStrikeAndExpiration(todayDate, expiration, optionType, strike):
     cur.execute(sqlQuery)
     strikeDataRaw = cur.fetchall()
     cur.close()
-    return strikeDataRaw[0]
+    if strikeDataRaw : # when strike == 0
+        return strikeDataRaw[0]
+    else:
+        return [0,0,0,0,-0.3, 0, 0, 0, 0, 0] # to deal with if statement
 
 now = datetime.datetime.now()
 book = xlwt.Workbook()
@@ -349,7 +352,7 @@ for deltaTarget in deltaTargetList:
         dKey = {}
         for j in range(0, len(colHeaders)): # create numbering key for use below
             dKey[colHeaders[j]] = j
-            print(str(dKey[colHeaders[j]]) + '  ' + colHeaders[j])
+            #print(str(dKey[colHeaders[j]]) + '  ' + colHeaders[j])
         sortedKeys = sorted(dailyValuesDict.keys())
         dailyOptionPnlList = list()
         cumOptionPnl = list()
@@ -399,16 +402,27 @@ for deltaTarget in deltaTargetList:
                 
             else:
                 dailyNaiveShortOptionPnl = (todayData[dKey['bid']] - yesterdayData[dKey['bid']] ) * -1 * 100
-                if optionPosition[-1] == -1 and todayData[dKey['Vix High']] > todayData[dKey['VIX Future settle']] and todayData[dKey['VIX Future settle']] > 0: # criteria to close short
-                    decisionList.append('Close short position')
+                #print('currentStrikeDetails: ' + str(row) + str(optionExpiryString) + str(optionType) + str(currentStrike))
+                currentStrikeDetails = getdeltaForStrikeAndExpiration(row, optionExpiryString, optionType, currentStrike)
+                #print(currentStrikeDetails)
+                if ((optionPosition[-1] == -1 and (todayData[dKey['Vix High']] > 2 + todayData[dKey['VIX Future settle']]) and todayData[dKey['VIX Future settle']] > 0) or
+                    (optionPosition[-1] == -1 and currentStrikeDetails[4] < -0.4) or
+                    (optionPosition[-1] == -1 and currentStrikeDetails[4] > -0.1)): # criteria to close short
+                    if (optionPosition[-1] == -1 and currentStrikeDetails[4] < -0.4):
+                        decisionList.append('Close short position - large negative delta')
+                    elif (optionPosition[-1] == -1 and currentStrikeDetails[4] > -0.1):
+                        decisionList.append('Close short position - small negative delta')
+                    else:
+                        decisionList.append('Close short position - VIX related')
                     #dailyOptionTheo = todayData[dKey['ask']]                   
-                    currentStrikeDetails = getdeltaForStrikeAndExpiration(row, optionExpiryString, optionType, currentStrike)
+                    #currentStrikeDetails = getdeltaForStrikeAndExpiration(row, optionExpiryString, optionType, currentStrike)
                     dailyOptionTheo = currentStrikeDetails[6]
                     dailyOptionPnl = (dailyOptionTheo * currentOptionPosition * 100)
                     currentOptionPosition = 0
                     currentStrike = 0
                     currentStrikeDelta = 0
-                elif optionPosition[-1] == 0 and todayData[dKey['Vix High']] < todayData[dKey['VIX Future settle']] and todayData[dKey['VIX Future settle']] > 0: # criteria to put short back on:
+                    ######### need a condition to put short option back on if Vix future has not started trading yet
+                elif (optionPosition[-1] == 0 and todayData[dKey['Vix High']] < todayData[dKey['calculatedVIX']]): # criteria to put short back on [and todayData[dKey['VIX Future settle']] > 0]
                     decisionList.append('Reopen short position')
                     currentOptionPosition = -1
                     dailyOptionTheo = todayData[dKey['bid']] 
