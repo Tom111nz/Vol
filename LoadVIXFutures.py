@@ -11,7 +11,7 @@ import dateutil
 import sys
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
-
+from decimal import *
 
 def getVixFutureExpiry(futureDateCode):
     cur = con.cursor()
@@ -153,6 +153,10 @@ for v in VIXFutureList:
 ##        print(lastRowTradeDate)
 ##        print(firstRowContract)
         #sys.exit(0)
+        ## check that the settle value is above zero:
+        for row in my_list[startRow:]:
+            if Decimal(row[6]) < 1.0:
+                print("1: Settle is less than 1.0 for %s %s: %s", row[0], row[1], row[6])              
         ## compare the last Trade date with expiry date
         if lastRowTradeDate < ExpiryDate:
             ## this contract has not expired, so we work out the number of business days left ourselves

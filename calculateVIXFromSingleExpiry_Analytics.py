@@ -385,6 +385,7 @@ for deltaTarget in deltaTargetList:
         cumNaiveShortOptionPnL = list()
         strikeList = list()
         strikeDeltaList = list()
+        underlyingBid = list()
         pnlDict = {}
         currentOptionPosition = 99 # to show we have no position       
         for u, row in enumerate(sortedKeys[1:]): # start at second row, we don't take position on first day of listing of option
@@ -465,6 +466,7 @@ for deltaTarget in deltaTargetList:
             dailyNaiveShortOptionPnlList.append(dailyNaiveShortOptionPnl)
             strikeList.append(currentStrike)
             strikeDeltaList.append(currentStrikeDelta)
+            underlyingBid.append(todayData[dKey['underling bid']])
             if u == 0:
                 cumOptionPnl.append(dailyOptionPnl)
                 cumVixFuturePnl.append(dailyVixFuturePnl)
@@ -500,8 +502,8 @@ for deltaTarget in deltaTargetList:
         book.add_sheet(futureName)
         print('futureName: ' + futureName)
         print('sheetNum: ' + str(sheetNum))
-        listOfOutputsNames = ['Date', 'calculatedVIX', 'strike', 'strikeList', 'strikeDeltaList', 'optionPosition', 'decisionList', 'optionTheo', 'bid', 'ask', 'vixFuturePosition', 'VIXFuturesettle', 'VixHigh', 'VixLow', 'VixClos', 'dailyVixFuturePnlList', 'cumVixFuturePnl', 'dailyNaiveShortOptionPnlList', 'cumNaiveShortOptionPnL', 'dailyOptionPnlList', 'cumOptionPnl', 'dailyPnlList', 'cumDailyPnl']
-        listOfOutputs = [dateList, calculatedVIX, strike, strikeList, strikeDeltaList, optionPosition, decisionList, optionTheo, bid, ask, vixFuturePosition, VIXFuturesettle, VixHigh, VixLow, VixClos, dailyVixFuturePnlList, cumVixFuturePnl, dailyNaiveShortOptionPnlList, cumNaiveShortOptionPnL, dailyOptionPnlList, cumOptionPnl, dailyPnlList, cumDailyPnl]
+        listOfOutputsNames = ['Date', 'calculatedVIX', 'strike', 'strikeList', 'strikeDeltaList', 'underlyingBid', 'optionPosition', 'decisionList', 'optionTheo', 'bid', 'ask', 'vixFuturePosition', 'VIXFuturesettle', 'VixHigh', 'VixLow', 'VixClos', 'dailyVixFuturePnlList', 'cumVixFuturePnl', 'dailyNaiveShortOptionPnlList', 'cumNaiveShortOptionPnL', 'dailyOptionPnlList', 'cumOptionPnl', 'dailyPnlList', 'cumDailyPnl']
+        listOfOutputs = [dateList, calculatedVIX, strike, strikeList, strikeDeltaList, underlyingBid, optionPosition, decisionList, optionTheo, bid, ask, vixFuturePosition, VIXFuturesettle, VixHigh, VixLow, VixClos, dailyVixFuturePnlList, cumVixFuturePnl, dailyNaiveShortOptionPnlList, cumNaiveShortOptionPnL, dailyOptionPnlList, cumOptionPnl, dailyPnlList, cumDailyPnl]
         try:
             for outer in range(0, len(listOfOutputsNames)):
                 book.get_sheet(sheetNum).write(0, outer, listOfOutputsNames[outer])
