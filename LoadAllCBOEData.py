@@ -40,5 +40,13 @@ with open("Historical_CBOE_Download.py") as f:
     code = compile(f.read(), "Historical_CBOE_Download.py", 'exec')
     exec(code)   
 logging.info('End SPX and VIX options')
+## Calculate VIX
+print("(5) Calculate VIX")
+logging.info('Start Calculate VIX')
+with open("VIXCalculated.py") as f:
+    code = compile(f.read(), "VIXCalculated.py", 'exec')
+    exec(code)   
+logging.info('End Calculate VIX')
+
 nowEnd = datetime.datetime.now()
 logging.info('Program ended: %s' % nowEnd)
