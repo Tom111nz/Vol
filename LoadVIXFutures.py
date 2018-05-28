@@ -154,9 +154,9 @@ for v in VIXFutureList:
 ##        print(firstRowContract)
         #sys.exit(0)
         ## check that the settle value is above zero:
-        for row in my_list[startRow:]:
-            if Decimal(row[6]) < 1.0:
-                print("1: Settle is less than 1.0 for %s %s: %s", row[0], row[1], row[6])              
+##        for row in my_list[startRow:]:
+##            if Decimal(row[5]) < 1.0:
+##                print("1: Close is less than 1.0 for %s %s: %s", row[0], row[1], row[5])              
         ## compare the last Trade date with expiry date
         if lastRowTradeDate < ExpiryDate:
             ## this contract has not expired, so we work out the number of business days left ourselves
@@ -181,6 +181,8 @@ for v in VIXFutureList:
                           (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], workdays.networkdays(rowDate, ExpiryDate, Holidays) -1, (ExpiryDate-rowDate).days))
                     con.commit()
                     cur.close()
+                    if Decimal(row[5]) < 1.0:
+                        print("1: Close is less than 1.0 for %s %s: %s", row[0], row[1], row[5]) 
                 except (MySQLdb.Error, MySQLdb.Warning) as e:
                     print(e)
                     print("1: Error for %s %s:", date, row[1])
@@ -205,6 +207,8 @@ for v in VIXFutureList:
                           (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], BDInContract-BDCount-startRow, (ExpiryDate-rowDate).days))
                     con.commit()
                     cur.close()
+                    if Decimal(row[5]) < 1.0:
+                        print("1: Close is less than 1.0 for %s %s: %s", row[0], row[1], row[5]) 
                 except (MySQLdb.Error, MySQLdb.Warning) as e:
                     print(e)
                     print("2: Error for %s %s:", date, row[1])

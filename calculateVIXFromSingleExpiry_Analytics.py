@@ -252,6 +252,16 @@ for deltaTarget in deltaTargetList:
         else:
             optionType = 'c'
         deltaXDict = getDeltaThroughTime(optionExpiryString, deltaTarget, optionType)
+
+        ## Get the calculated VIX and put it in a dictionary
+        sqlGetVIXCalculated = ('Select * from VIXCalculated where FuturesContract = '"'%s'"' and optionexpiration = '"'%s'"'' % (futureName, optionExpiryString))
+        cur = con.cursor()
+        cur.execute(sqlGetVIXCalculated)
+        CalculatedVIXDataRaw = cur.fetchall()
+        cur.close()
+        CalculatedVIXDataRawDict = {}
+        for row in CalculatedVIXDataRaw:
+            CalculatedVIXDataRawDict[datetime.datetime.strftime(row[0], "%Y-%m-%d")] = row[4]
         
         # Now calculate VIX using optionExpiry for each day
         dailyValuesDict = {}
@@ -269,15 +279,19 @@ for deltaTarget in deltaTargetList:
                     #quoteDateKey = '2009-06-25'
                     #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
-                    if calcVix:
-                        try:
-                            interpolatedYield = interpolateUSYield(quoteDate, optionExpiryDatetime)
-                        except:
-                            interpolatedYield = 0.01
-                            print('Error: interpolatedYield = 0.01 ' + optionExpiryString + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
-                        aVIX = calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, interpolatedYield, calculateVIXFromSingleExpiry_PrintResults)
+                    if quoteDateKey in CalculatedVIXDataRawDict:
+                        aVIX = CalculatedVIXDataRawDict[quoteDateKey]
                     else:
                         aVIX = 0.0
+##                    if calcVix:
+##                        try:
+##                            interpolatedYield = interpolateUSYield(quoteDate, optionExpiryDatetime)
+##                        except:
+##                            interpolatedYield = 0.01
+##                            print('Error: interpolatedYield = 0.01 ' + optionExpiryString + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
+##                        aVIX = calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, interpolatedYield, calculateVIXFromSingleExpiry_PrintResults)
+##                    else:
+##                        aVIX = 0.0
                     iList.append(aVIX)
                     iList.append(underlyingBid)
                     # add the VIX Futures data

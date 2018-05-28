@@ -8,7 +8,7 @@ from dateutil.parser import parse
 
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol")
-DeltaUsed = 0.7
+#DeltaUsed = 0.7
 InterestRateUsed = 0.01
 calculateVIXFromSingleExpiry_PrintResults = False
 rowsInserted = 0
@@ -70,15 +70,15 @@ for sheetNum, row in enumerate(VIXFutureOptionExpiryList()):
         if datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) <= datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day):
             quoteDateKey = datetime.datetime.strftime(quoteDate, "%Y-%m-%d")
             ## check is not in database already
-            checkSQL = ('Select * from VIXCalculated where quote_date = '"'%s'"' and FuturesContract = '"'%s'"' and OptionExpiration = '"'%s'"' and InterestRateUsed = '"'%s'"' and DeltaUsed = '"'%s'"'' %
-                        (quoteDateKey, FuturesContract, optionExpiryString, InterestRateUsed, DeltaUsed))
+            checkSQL = ('Select * from VIXCalculated where quote_date = '"'%s'"' and FuturesContract = '"'%s'"' and OptionExpiration = '"'%s'"' and InterestRateUsed = '"'%s'"''  %
+                        (quoteDateKey, FuturesContract, optionExpiryString, InterestRateUsed))
             cur = con.cursor()
             cur.execute(checkSQL)
             if cur.fetchone() is None:              
                 VIXCalculated = calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, InterestRateUsed, calculateVIXFromSingleExpiry_PrintResults)
-                cur.execute('''INSERT into VIXCalculated (quote_date, FuturesContract, OptionExpiration, InterestRateUsed, DeltaUsed, VIXCalculated)
-                          values (%s, %s, %s, %s, %s, %s)''',
-                          (parse(quoteDateKey).strftime("%Y-%m-%d %H:%M:%S"), FuturesContract, optionExpiryString, InterestRateUsed, DeltaUsed, VIXCalculated))
+                cur.execute('''INSERT into VIXCalculated (quote_date, FuturesContract, OptionExpiration, InterestRateUsed, VIXCalculated)
+                          values (%s, %s, %s, %s, %s)''',
+                          (parse(quoteDateKey).strftime("%Y-%m-%d %H:%M:%S"), FuturesContract, optionExpiryString, InterestRateUsed, VIXCalculated))
                 cur.close()
                 con.commit()
                 print(str(optionExpiryDatetime))
