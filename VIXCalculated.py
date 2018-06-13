@@ -13,6 +13,78 @@ InterestRateUsed = 0.01
 calculateVIXFromSingleExpiry_PrintResults = False
 rowsInserted = 0
 
+# generate the required VIX Futures contract string
+def generateVIXFuturesString(optionExpiryDatetime):
+    # create the VIX futures contract string for a given option expiry
+    theOptionMonth = optionExpiryDatetime.month
+    theOptionYear = optionExpiryDatetime.year - 2000
+##    print('theOptionMonth ' + str(theOptionMonth))
+##    print('theOptionYear ' + str(theOptionYear))
+    if theOptionMonth == 1:
+        if theOptionYear - 1 < 10:
+            result = 'Z (Dec 0' + str(theOptionYear - 1) + ')'
+        else:
+            result = 'Z (Dec ' + str(theOptionYear - 1) + ')'
+    elif theOptionMonth == 2:
+        if theOptionYear < 10:
+            result = 'F (Jan 0' + str(theOptionYear) + ')'
+        else:
+            result = 'F (Jan ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 3:
+        if theOptionYear < 10:
+            result = 'G (Feb 0' + str(theOptionYear) + ')'
+        else:
+            result = 'G (Feb ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 4:
+        if theOptionYear < 10:
+            result = 'H (Mar 0' + str(theOptionYear) + ')'
+        else:
+            result = 'H (Mar ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 5:
+        if theOptionYear < 10:
+            result = 'J (Apr 0' + str(theOptionYear) + ')'
+        else:
+            result = 'J (Apr ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 6:
+        if theOptionYear < 10:
+            result = 'K (May 0' + str(theOptionYear) + ')'
+        else:
+            result = 'K (May ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 7:
+        if theOptionYear < 10:
+            result = 'M (Jun 0' + str(theOptionYear) + ')'
+        else:
+            result = 'M (Jun ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 8:
+        if theOptionYear < 10:
+            result = 'N (Jul 0' + str(theOptionYear) + ')'
+        else:
+            result = 'N (Jul ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 9:
+        if theOptionYear < 10:
+            result = 'Q (Aug 0' + str(theOptionYear) + ')'
+        else:
+            result = 'Q (Aug ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 10:
+        if theOptionYear < 10:
+            result = 'U (Sep 0' + str(theOptionYear) + ')'
+        else:
+            result = 'U (Sep ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 11:
+        if theOptionYear < 10:
+            result = 'V (Oct 0' + str(theOptionYear) + ')'
+        else:
+            result = 'V (Oct ' + str(theOptionYear) + ')'
+    elif theOptionMonth == 12:
+        if theOptionYear < 10:
+            result = 'X (Nov 0' + str(theOptionYear) + ')'
+        else:
+            result = 'X (Nov ' + str(theOptionYear) + ')'
+    else:
+        result = 'MassiveError!'
+
+    return result
+
 
 ## check we are not missing an option expiry in VIXFutureOptionExpiryList()
 sqlExpiries = ('select expiration from optionexpiry '
@@ -26,24 +98,31 @@ expiriesList = list()
 expiriesAlreadyInList = list()
 for item in expiries:
     expiriesList.append(item[0])
-for item in VIXFutureOptionExpiryList():
-    expiriesAlreadyInList.append(datetime.datetime.strptime(item[2] + ' 08:30:00', "%Y-%m-%d %H:%M:%S"))
+##for item in VIXFutureOptionExpiryList():
+##    expiriesAlreadyInList.append(datetime.datetime.strptime(item[2] + ' 08:30:00', "%Y-%m-%d %H:%M:%S"))
+##
+##outer = set(expiriesList) - set(expiriesAlreadyInList)
+##if len(outer) > 0:
+##    print('List of option expiries not yet in VIXFutureOptionExpiryList')
+##    for item in sorted(outer):
+##        print(item)
 
-outer = set(expiriesList) - set(expiriesAlreadyInList)
-if len(outer) > 0:
-    print('List of option expiries not yet in VIXFutureOptionExpiryList')
-    for item in sorted(outer):
-        print(item)
 
+#for sheetNum, row in enumerate(VIXFutureOptionExpiryList()):
+for sheetNum, row in enumerate(expiriesList):    
+    #FuturesContract = row[0]
+    #futureExpiryString = row[1]
+    #futureExpiryDatetime = datetime.datetime.strptime(futureExpiryString, "%Y-%m-%d")
+    #optionExpiryString = row[2] + ' 08:30:00'
+    optionExpiryDatetime = row
+    optionExpiryString = optionExpiryDatetime.strftime("%Y-%m-%d %H:%M:%S")
+    #optionExpiryDatetime = datetime.datetime.strptime(row, "%Y-%m-%d %H:%M:%S")
+    FuturesContract = generateVIXFuturesString(optionExpiryDatetime)
+##    # test formula
+##    generateVIXFuturesString(optionExpiryDatetime)
+##    sys.exit(0)
 
-for sheetNum, row in enumerate(VIXFutureOptionExpiryList()):
     
-    FuturesContract = row[0]
-    futureExpiryString = row[1]
-    futureExpiryDatetime = datetime.datetime.strptime(futureExpiryString, "%Y-%m-%d")
-    optionExpiryString = row[2] + ' 08:30:00'
-    optionExpiryDatetime = datetime.datetime.strptime(optionExpiryString, "%Y-%m-%d %H:%M:%S")
-
     ## break if is an old contract
     sqlEarliestExpiry = ('select min(expiration) from optionexpiry '
                 'where quote_date = (select max(quote_date) from optionexpiry) '
