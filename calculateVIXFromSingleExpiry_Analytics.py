@@ -401,28 +401,29 @@ for deltaTarget in deltaTargetList:
         strikeDeltaList = list()
         underlyingBid = list()
         pnlDict = {}
-        currentOptionPosition = 99 # to show we have no position       
+        currentOptionPosition = 99 # to show we have no position
+        optionPositionPerPoint = 100
         for u, row in enumerate(sortedKeys[1:]): # start at second row, we don't take position on first day of listing of option
             todayData = dailyValuesDict[row]
             yesterdayData = dailyValuesDict[sortedKeys[u]]
-                           
+             ## add in cash position and margin require, and interest on margin                          
             if u == 0:
                 decisionList.append('Open short position')
                 currentOptionPosition = -1 # start with a short option position
                 dailyOptionTheo = todayData[dKey['bid']]
                 currentStrike = todayData[dKey['strike']]
                 currentStrikeDelta = todayData[dKey['delta']]
-                dailyOptionPnl = -(dailyOptionTheo * currentOptionPosition * 100)
+                dailyOptionPnl = (todayData[dKey['bid']] - todayData[dKey['ask']]) * currentOptionPosition * optionPositionPerPoint # pay the spread
                 dailyNaiveShortOptionPnl = dailyOptionPnl
                 
             else:
-                dailyNaiveShortOptionPnl = (todayData[dKey['bid']] - yesterdayData[dKey['bid']] ) * -1 * 100
+                dailyNaiveShortOptionPnl = (todayData[dKey['ask']] - yesterdayData[dKey['ask']] ) * currentOptionPosition * optionPositionPerPoint
                 #print('currentStrikeDetails: ' + str(row) + str(optionExpiryString) + str(optionType) + str(currentStrike))
                 currentStrikeDetails = getdeltaForStrikeAndExpiration(row, optionExpiryString, optionType, currentStrike)
                 #print(currentStrikeDetails)
                 if ((optionPosition[-1] == -1 and (todayData[dKey['Vix High']] > 2 + todayData[dKey['VIX Future settle']]) and todayData[dKey['VIX Future settle']] > 0) or
                     (optionPosition[-1] == -1 and currentStrikeDetails[4] < -0.4) or
-                    (optionPosition[-1] == -1 and currentStrikeDetails[4] > -0.1)): # criteria to close short
+                    (optionPosition[-1] == -1 and currentStrikeDetails[4] > -0.1)): # criteria to close short, we buy back option at the ask
                     if (optionPosition[-1] == -1 and currentStrikeDetails[4] < -0.4):
                         decisionList.append('Close short position - large negative delta')
                     elif (optionPosition[-1] == -1 and currentStrikeDetails[4] > -0.1):
@@ -431,8 +432,8 @@ for deltaTarget in deltaTargetList:
                         decisionList.append('Close short position - VIX related')
                     #dailyOptionTheo = todayData[dKey['ask']]                   
                     #currentStrikeDetails = getdeltaForStrikeAndExpiration(row, optionExpiryString, optionType, currentStrike)
-                    dailyOptionTheo = currentStrikeDetails[6]
-                    dailyOptionPnl = (dailyOptionTheo * currentOptionPosition * 100)
+                    dailyOptionTheo = currentStrikeDetails[6] # the ask
+                    dailyOptionPnl = (dailyOptionTheo - optionTheo[-1]) * currentOptionPosition * optionPositionPerPoint
                     currentOptionPosition = 0
                     currentStrike = 0
                     currentStrikeDelta = 0
@@ -440,10 +441,10 @@ for deltaTarget in deltaTargetList:
                 elif (optionPosition[-1] == 0 and todayData[dKey['Vix High']] < todayData[dKey['calculatedVIX']]): # criteria to put short back on [and todayData[dKey['VIX Future settle']] > 0]
                     decisionList.append('Reopen short position')
                     currentOptionPosition = -1
-                    dailyOptionTheo = todayData[dKey['bid']] 
-                    dailyOptionPnl = -(dailyOptionTheo * currentOptionPosition * 100)
+                    dailyOptionTheo = todayData[dKey['bid']]
                     currentStrike = todayData[dKey['strike']]
                     currentStrikeDelta = todayData[dKey['delta']]
+                    dailyOptionPnl = (todayData[dKey['bid']] - todayData[dKey['ask']]) * currentOptionPosition * optionPositionPerPoint # pay the spread
                 else: # keep current position (short or flat)
                     decisionList.append('Keep current position')
                     currentStrike = strikeList[-1]
@@ -457,7 +458,7 @@ for deltaTarget in deltaTargetList:
                         #print(currentStrikeDetails)
                         currentStrikeDelta = Decimal(currentStrikeDetails[4])
                         dailyOptionTheo = currentStrikeDetails[6] # do we want this as an extra column, to isolate how naive strategy compares ?
-                        dailyOptionPnl = (dailyOptionTheo - optionTheo[-1]) * currentOptionPosition * 100
+                        dailyOptionPnl = (dailyOptionTheo - optionTheo[-1]) * currentOptionPosition * optionPositionPerPoint
 
             # VIX Future Position
             if todayData[dKey['VIX Future settle']] > 0:
@@ -465,8 +466,8 @@ for deltaTarget in deltaTargetList:
             else:
                 currentVixFuturePosition = 0
             # VIX Future PnL
-            if currentVixFuturePosition == 1 and vixFuturePosition[-1] == 0:
-                dailyVixFuturePnl = 0#-(todayData[dKey['VIX Future settle']] * currentVixFuturePosition * 1000) ## buying the future
+            if currentVixFuturePosition == 1 and vixFuturePosition[-1] == 0: # buying the future
+                dailyVixFuturePnl = 0
             else:
                 dailyVixFuturePnl = (Decimal(todayData[dKey['VIX Future settle']]) - Decimal(yesterdayData[dKey['VIX Future settle']])) * currentVixFuturePosition * 1000
             # Generics
@@ -529,8 +530,31 @@ for deltaTarget in deltaTargetList:
                 print(type(inst))    # the exception instance
                 print(inst.args)     # arguments stored in .args
                 print(inst)
+        # print graph to pdf
+        if printToFile:
+            fig = plt.figure()
+            ax = fig.add_subplot(111) 
+            xAxis = range(len(calculatedVIX))
+    ##                print('xAxis')
+    ##                print(str(len(xAxis)))
+            ax.plot(xAxis, calculatedVIX, 'r-', xAxis, VIXFuturesettle, 'g-')
+            axes = plt.gca()
+            #axes.set_ylim([0,min(300, max(calculatedVIX)+20, max(VIXFuturesettle)+20)])
+            ax2 = ax.twinx()
+            ax2.plot(xAxis, underlyingBid, 'b--')#, strikeXD, 'r--')
+            ax.legend(['Calculated VIX', 'VIX Future'], loc='best')
+            #ax2.legend(['Underlying', 'Strike'], loc=3)
+            plt.title(futureName)
+            plt.show()
+            if fig is not None:
+                        #print(fig)
+                pp.savefig(fig)
+                plt.close()
+            else:
+                print('fig was none for ' + futureName)
+            #print(fig)
 book.save("PnL_" + now.strftime("%Y-%m-%d") + ".xls")
-
+pp.close()
         ## Next job
         ## retain strike until need to re-hedge back to the actual 20d strike. Keep all columns and add new columns for the strike actually used (and its delta), and its theo.
         

@@ -47,6 +47,8 @@ with open("VIXCalculated.py") as f:
     code = compile(f.read(), "VIXCalculated.py", 'exec')
     exec(code)   
 logging.info('End Calculate VIX')
-
+## check for new VIX futures
+print('check for new VIX futures')
+print('https://markets.cboe.com/us/futures/market_statistics/settlement/')
 nowEnd = datetime.datetime.now()
 logging.info('Program ended: %s' % nowEnd)

@@ -61,6 +61,7 @@ for zipfilename in sorted(listOfZipFiles): # Loop - looking for matching files
     if datetime.datetime.strptime(zipfilename[-14:-4], "%Y-%m-%d") <= datetime.datetime.strptime(lastDateInDb[0], "%Y-%m-%d"):
         ##print("Not processing :" + zipfilename[-14:-4])
         continue
+    
     start_time = time.time()
     zipfileDirectoryWithFileName = scriptpath + "/CBOE_History/" + zipfilename
     getbinary(ftp, zipfilename, open(os.path.expanduser(zipfileDirectoryWithFileName), 'wb'))
