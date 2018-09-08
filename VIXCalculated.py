@@ -11,6 +11,7 @@ con = mdb.connect(host="localhost",user="root",
 #DeltaUsed = 0.7
 InterestRateUsed = 0.01
 calculateVIXFromSingleExpiry_PrintResults = False
+calculateVIXFromSingleExpiry_use30DaysToExpiry = False
 rowsInserted = 0
 
 # generate the required VIX Futures contract string
@@ -154,7 +155,7 @@ for sheetNum, row in enumerate(expiriesList):
             cur = con.cursor()
             cur.execute(checkSQL)
             if cur.fetchone() is None:              
-                VIXCalculated = calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, InterestRateUsed, calculateVIXFromSingleExpiry_PrintResults)
+                VIXCalculated = calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, InterestRateUsed, calculateVIXFromSingleExpiry_PrintResults, calculateVIXFromSingleExpiry_use30DaysToExpiry)
                 cur.execute('''INSERT into VIXCalculated (quote_date, FuturesContract, OptionExpiration, InterestRateUsed, VIXCalculated)
                           values (%s, %s, %s, %s, %s)''',
                           (parse(quoteDateKey).strftime("%Y-%m-%d %H:%M:%S"), FuturesContract, optionExpiryString, InterestRateUsed, VIXCalculated))

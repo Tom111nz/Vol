@@ -9,7 +9,7 @@ from ImportFromExcel import importExcelVol
 from Replicate_VIX_Calculation import outputDictionary, f, isolateStrikes, calculateExpiryVarianceContribution, calculateStrikeContributionToVIX, calculateExpiryVariance
 import sys
 
-def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResults=False):
+def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResults=False, use30DaysToExpiry=True):
     if printResults:
         print('calculateVIXFromSingleExpiry: quote_date: ' + str(quote_date))
     # connect to db
@@ -77,9 +77,14 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
         print('expiryListWithoutZeroCallAndPutBidSorted')
         print(expiryListWithoutZeroCallAndPutBidSorted)
     # expiry time in minutes
-    expiryTTE30Dminutes = 30 * 24 * 60
+    if use30DaysToExpiry:
+        expiryTTEminutes = 30 * 24 * 60
+    else: # use actual number of days to option maturity
+        #print('day delta test')
+        #print(str(max((datetime.datetime.strptime(optionExpiration_date, "%Y-%m-%d %H:%M:%S") - datetime.datetime.strptime(quote_date, "%Y-%m-%d")).days, 1)))
+        expiryTTEminutes = max((datetime.datetime.strptime(optionExpiration_date, "%Y-%m-%d %H:%M:%S") - datetime.datetime.strptime(quote_date, "%Y-%m-%d")).days, 1) * 24 * 60
     expiryTTE365Dminutes = 365 * 24 * 60
-    expiryTTEyears = expiryTTE30Dminutes / expiryTTE365Dminutes
+    expiryTTEyears = expiryTTEminutes / expiryTTE365Dminutes
     ## Determine the forward SPX level where min(abs(c_avgBidAsk - p_avgBidAsk)), but don't include strikes where both call and put bids are zero
     if len(expiryListWithoutZeroCallAndPutBidSorted) < 1:
         print('No data - VIX is zero')
@@ -160,7 +165,7 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
     expiryContributionList.append(expiryK0Row)
     expiryVariance, expiryStrikeContribution = calculateExpiryVariance(expiryContributionList, expiryTTEyears, expiryK0Row[f("strike")], expiryForwardIndex)
     # calculate VIX
-    scaleTo365D = expiryTTE365Dminutes / expiryTTE30Dminutes
+    scaleTo365D = expiryTTE365Dminutes / expiryTTEminutes
     VixCalc = expiryTTEyears * expiryVariance
     if VixCalc < 0:
         print('VixCalc is negative, return 0. Quote_date = ' + str(quote_date) + ' It will be because of the large difference between the expiryForwardIndex and the expiryK0Strike')
