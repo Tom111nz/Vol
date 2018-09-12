@@ -15,8 +15,8 @@ con = mdb.connect(host="localhost",user="root",
 
 #deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
 deltaTargetList = [0.7]
-printToFile = True
-calcVix = True
+printToFile = False
+#calcVix = True
 calculateVIXFromSingleExpiry_PrintResults = False
 # VIX Future Name, VIX Future Expiry, SPX Option Expiry
 #VIXFutureOptionExpiryLists = [['X (Nov 10)','2010-11-17','2010-12-18']]
@@ -163,10 +163,27 @@ VIXFutureOptionExpiryLists = (
 ('U (Sep 17)','2017-09-20','2017-10-20'),
 ('V (Oct 17)','2017-10-18','2017-11-17'),
 ('X (Nov 17)','2017-11-15','2017-12-15'),
-('Z (Dec 17)','2017-12-20','2018-01-19')
+('Z (Dec 17)','2017-12-20','2018-01-19'),
+('F (Jan 18)','2018-01-17','2018-02-16'),
+('G (Feb 18)','2018-02-14','2018-03-16'),
+('H (Mar 18)','2018-03-21','2018-04-20'),
+('J (Apr 18)','2018-04-18','2018-05-18'),
+('K (May 18)','2018-05-16','2018-06-15'),
+('M (Jun 18)','2018-06-20','2018-07-20'),
+('N (Jul 18)','2018-07-18','2018-08-17'),
+('Q (Aug 18)','2018-08-22','2018-09-21'),
+('U (Sep 18)','2018-09-19','2018-10-19'),
+('V (Oct 18)','2018-10-17','2018-11-16'),
+('X (Nov 18)','2018-11-21','2018-12-21'),
+('Z (Dec 18)','2018-12-19','2019-01-18'),
+('F (Jan 19)','2019-01-16','2019-02-15'),
+('G (Feb 19)','2019-02-13','2019-03-15'),
+('H (Mar 19)','2019-03-19','2019-04-18'),
+('J (Apr 19)','2019-04-17','2019-05-17'),
+('K (May 19)','2019-05-22','2019-06-21')
 )
 #VIXFutureOptionExpiryLists = (('Q (Aug 17)','2017-08-16','2017-09-15'),('X (Nov 17)','2017-11-15','2017-12-15'), ('V (Oct 18)', '2018-10-17', '2018-11-16'))
-VIXFutureOptionExpiryLists = (('V (Oct 18)', '2018-10-17', '2018-11-16'),('Q (Aug 17)','2017-08-16','2017-09-15'),('X (Nov 17)','2017-11-15','2017-12-15'))
+#VIXFutureOptionExpiryLists = (('V (Oct 18)', '2018-10-17', '2018-11-16'),('Q (Aug 17)','2017-08-16','2017-09-15'),('X (Nov 17)','2017-11-15','2017-12-15'))
 
 def getdeltaForStrikeAndExpiration(todayDate, expiration, optionType, strike):
     sqlQuery = ('select oe.quote_date, oe.Expiration, st.strike, st.option_type, og.delta_1545, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545, og.vega_1545 '
