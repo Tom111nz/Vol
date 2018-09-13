@@ -81,8 +81,7 @@ def getDeltaThroughTime(expiration, deltaTarget, optionType):
     idxX = df.groupby(df['quote_raw'])['deltalessX'].idxmin()
     closestXDStrike = df.loc[idxX, strikeDataRawHeaders]
     ## output to csv
-    ##closest50DStrike.to_csv('tester.csv', sep=' ')
-    closestXDStrike.to_csv('tester70.csv', sep=' ')
+    #closestXDStrike.to_csv('tester70.csv', sep=' ')
 ##    for key, value in closestXDStrike.set_index('quote_raw').T.to_dict('list').items():
 ##        print(key)
 ##        print(value)
