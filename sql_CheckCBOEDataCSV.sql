@@ -6,12 +6,8 @@ from optionexpiry oe
  join EoD on EoD.OptionExpiryID = oe.ID and EOD.strikeiD = st.ID
 where oe.ID in 
 (
-select * from optionexpiry 
+select ID from optionexpiry 
 where quote_date = '2017-03-27 15:45:00'
-and `rootOriginal` not in ('VIX', 'BVZ')
+and `rootOriginal` not in ('VIX', 'BVZ', 'SPXW')
 )
-##and oe.root not in ('VIX', 'BVZ')
-##group by oe.root, oe.quote_date, oe.expiration
-order by expiration, strike
-
-##--oe.root, st.strike, st.option_type, EoD.opn, EoD.high, EoD.low, EoD.clos, EoD.trade_volume, Eod.`bid_size_eod`, eod.`bid_eod` 
+order by expiration, strike, option_type

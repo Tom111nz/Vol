@@ -1,17 +1,18 @@
 ## Load in CBOE option data
 
 from __future__ import print_function
-from datetime import date, datetime, timedelta
+#from datetime import date, datetime, timedelta
 import csv
-import requests
-import _mysql
-import MySQLdb as mdb
+#import requests
+#import _mysql
+#import MySQLdb as mdb
+import pymysql as mdb
 from dateutil.parser import parse
-import workdays
-import datetime
-import dateutil
-import os
-import time
+#import workdays
+#import datetime
+#import dateutil
+#import os
+#import time
 
 def isDouble(val):
     try:

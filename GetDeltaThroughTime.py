@@ -3,7 +3,8 @@
 #and this file at same directory: site-packages/pandas-0.18.1-py3.5.egg-info/
 # and copy folder(s) to:
 ## MacIntosh HD/Library\Frameworks\Python.framework\Versions\3.5\lib\python3.5\site-packages\
-import MySQLdb as mdb
+#import MySQLdb as mdb
+import pymysql as mdb
 import numpy as np
 import csv
 import os
@@ -33,7 +34,7 @@ import datetime
 
 def getDeltaThroughTime(expiration, deltaTarget, optionType):
     con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
+                  passwd="password",db="Vol", port = 3307)
 
     sqlQuery = ('select oe.quote_date, oe.Expiration, st.strike, st.option_type, og.delta_1545, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545, og.vega_1545, '
         'case when st.option_type = "c" then abs(%s - delta_1545) else abs(%s - (1-abs(delta_1545))) end as "delta_gap" from optiongreeks og ' 
@@ -85,6 +86,6 @@ def getDeltaThroughTime(expiration, deltaTarget, optionType):
 ##    for key, value in closestXDStrike.set_index('quote_raw').T.to_dict('list').items():
 ##        print(key)
 ##        print(value)
-    print('######### exit function')
+    # print('######### exit function getDeltaThroughTime')
     #return closest70DStrike.set_index('quote_raw')['mid'].to_dict()
     return closestXDStrike.set_index('quote_raw').T.to_dict('list')

@@ -2,8 +2,9 @@ from __future__ import print_function
 from datetime import date, datetime, timedelta
 import csv
 import requests
-import _mysql
-import MySQLdb as mdb
+#import _mysql
+#import MySQLdb as mdb
+import pymysql as mdb
 from dateutil.parser import parse
 import workdays
 import datetime
@@ -14,7 +15,7 @@ from bs4 import BeautifulSoup
 import math
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
+                  passwd="password",db="Vol", port = 3307)
 
 thirtyDaysInMinutes = 30*24*60
 oneYearInMinutes = 365*24*60
@@ -41,8 +42,8 @@ for row in rawExpiry:
         try:
             download = s.get(aFile)
         except requests.exceptions.RequestException as e:
-            print(v)
-            print("Error1: Cannot get this file from CBOE webpage so we assume no subsequent files are available and we exit: 's%'" % v)
+            print(e)
+            print("Error1: Cannot get this file from CBOE webpage so we assume no subsequent files are available and we exit: 's%'" % aFile)
             sys.exit(0)
         decoded_content = download.content.decode('utf-8')
         cr = csv.reader(decoded_content.splitlines(), delimiter=',')

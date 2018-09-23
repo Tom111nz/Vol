@@ -2,12 +2,13 @@
 from VIXFutureOptionExpiryList import VIXFutureOptionExpiryList
 from calculateVIXFromSingleExpiry import calculateVIXFromSingleExpiry
 import sys
-import MySQLdb as mdb
+#import MySQLdb as mdb
+import pymysql as mdb
 import datetime
 from dateutil.parser import parse
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
+                  passwd="password",db="Vol", port = 3307)
 #DeltaUsed = 0.7
 InterestRateUsed = 0.01
 calculateVIXFromSingleExpiry_PrintResults = False

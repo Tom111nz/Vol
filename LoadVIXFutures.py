@@ -2,8 +2,9 @@ from __future__ import print_function
 from datetime import date, datetime, timedelta
 import csv
 import requests
-import _mysql
-import MySQLdb as mdb
+#import _mysql
+#import MySQLdb as mdb
+import pymysql as mdb
 from dateutil.parser import parse
 import workdays
 import datetime
@@ -25,7 +26,7 @@ def getVixFutureExpiry(futureDateCode):
         return res[0]
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
+                  passwd="password",db="Vol", port = 3307)
 
 contractExpiries = ['F', 'G', 'H', 'J', 'K', 'M', 'N', 'Q', 'U', 'V', 'X', 'Z']
 contractExpiriesMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -61,6 +62,10 @@ for i, mon in enumerate(contractExpiries):
 
         VIXFutureList.append(aFile)
 
+for row in VIXFutureList:
+    print(row)
+        
+        
 ## Holidays
 Holidays = list()
 Holidays.append(datetime.date(2016,1,1))

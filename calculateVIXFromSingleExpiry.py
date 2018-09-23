@@ -1,33 +1,37 @@
-import MySQLdb as mdb
+#import MySQLdb as mdb
+import pymysql as mdb
 from operator import itemgetter
-import sys
+#import sys
 import datetime
 import math
 import bisect
-import xlrd
-from ImportFromExcel import importExcelVol
+#import xlrd
+#from ImportFromExcel import importExcelVol
 from Replicate_VIX_Calculation import outputDictionary, f, isolateStrikes, calculateExpiryVarianceContribution, calculateStrikeContributionToVIX, calculateExpiryVariance
-import sys
+#import sys
 
-def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResults=False, use30DaysToExpiry=True):
+def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResults=False, use30DaysToExpiry=True, useOwnData=None):
     if printResults:
         print('calculateVIXFromSingleExpiry: quote_date: ' + str(quote_date))
     # connect to db
     con = mdb.connect(host="localhost",user="root",
-                      passwd="password",db="Vol")
-    # bring back strike level information for expiration on quote_date
-    sqlQuery = ('select oe.Expiration, st.strike, st.option_type, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545 from optiongreeks og '
-    'join optionexpiry oe on oe.ID = og.optionexpiryID '
-    'join strike st on st.ID = og.strikeID '
-    'where og.optionexpiryID = '
-    '('
-    'select ID from optionexpiry where substring(quote_date, 1, 10) = '"'%s'"' and root in ("SPX") and expiration = '"'%s'"''
-    ')'
-    'order by oe.Expiration, st.strike;' % (quote_date, optionExpiration_date))
-    cur = con.cursor()
-    cur.execute(sqlQuery)
-    sqlResults = cur.fetchall()
-    cur.close()
+                      passwd="password",db="Vol", port = 3307)
+    if useOwnData is None:
+        # bring back strike level information for expiration on quote_date
+        sqlQuery = ('select oe.Expiration, st.strike, st.option_type, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545 from optiongreeks og '
+        'join optionexpiry oe on oe.ID = og.optionexpiryID '
+        'join strike st on st.ID = og.strikeID '
+        'where og.optionexpiryID = '
+        '('
+        'select ID from optionexpiry where substring(quote_date, 1, 10) = '"'%s'"' and root in ("SPX") and expiration = '"'%s'"''
+        ')'
+        'order by oe.Expiration, st.strike;' % (quote_date, optionExpiration_date))
+        cur = con.cursor()
+        cur.execute(sqlQuery)
+        sqlResults = cur.fetchall()
+        cur.close()
+    else:
+        sqlResults = useOwnData
     if printResults:
         print(sqlQuery)
     # create vectors

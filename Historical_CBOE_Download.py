@@ -6,7 +6,8 @@ import os
 import csv
 import sys
 import time
-import MySQLdb as mdb
+#import MySQLdb as mdb
+import pymysql as mdb
 import datetime
 from LoadCBOEoptions import insertVolData
 directory = 'ftp.datashop.livevol.com'
@@ -22,7 +23,7 @@ ftp.set_pasv(False)
 listOfZipFiles = ftp.nlst()
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password", db="Vol")
+                  passwd="password", db="Vol", port = 3307)
 cur = con.cursor()
 
 def gettext(ftp, filename, outfile=None):

@@ -4,7 +4,8 @@
 # choose day from this article
 # http://www.cboeoptionshub.com/2014/10/03/vix-spot-index-include-sp-500-weekly-options-beginning-oct-6th-part-1/
 
-import MySQLdb as mdb
+#import MySQLdb as mdb
+import pymysql as mdb
 from operator import itemgetter
 import sys
 import datetime
@@ -144,7 +145,7 @@ def calculateVIX(quote_date, printResults=False):
     expiryTTE365Dminutes = 365 * 24 * 60
 
     con = mdb.connect(host="localhost",user="root",
-                      passwd="password",db="Vol")
+                      passwd="password",db="Vol", port = 3307)
     cur = con.cursor()
 
     # Get all the expiries for the quote_date

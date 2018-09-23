@@ -1,9 +1,10 @@
-import MySQLdb as mdb
+#import MySQLdb as mdb
+import pymysql as mdb
 import datetime
 
 def interpolateUSYield(quoteDateDateTime, optionExpiryDatetime):
     con = mdb.connect(host="localhost",user="root",
-                      passwd="password",db="Vol")
+                      passwd="password",db="Vol", port = 3307)
     sqlQuery = ('select 1M, 3M, 6M, 1Y, 2Y, 3Y, 5Y, 7Y, 10Y, 20Y, 30Y from USTreasuryYields where quote_date = '"'%s'"';' % datetime.datetime.strftime(quoteDateDateTime, "%Y-%m-%d"))  
     cur = con.cursor()
     cur.execute(sqlQuery)

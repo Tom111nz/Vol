@@ -2,15 +2,17 @@ from __future__ import print_function
 from datetime import date, datetime, timedelta
 import csv
 import requests
-import _mysql
-import MySQLdb as mdb
+import pymysql as mdb
+#import _mysql
+#import MySQLdb as mdb
+#import mysql.connector as mdb
 from dateutil.parser import parse
 
 VIXList = ['http://www.cboe.com/publish/scheduledtask/mktdata/datahouse/vixcurrent.csv']
 
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
+                  passwd="password",db="Vol", port = 3307)
 
 for v in VIXList:
     with requests.Session() as s:
