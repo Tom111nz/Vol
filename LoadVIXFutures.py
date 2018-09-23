@@ -6,13 +6,14 @@ import requests
 #import MySQLdb as mdb
 import pymysql as mdb
 from dateutil.parser import parse
-import workdays
+#import workdays
 import datetime
 import dateutil
 import sys
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from decimal import *
+import numpy as np
 
 def getVixFutureExpiry(futureDateCode):
     cur = con.cursor()
@@ -61,9 +62,6 @@ for i, mon in enumerate(contractExpiries):
         aFile = 'https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/' + str(expiryDate) #+ '/CFE_' + mon + thisYear[2:] + '_VX.csv'
 
         VIXFutureList.append(aFile)
-
-for row in VIXFutureList:
-    print(row)
         
         
 ## Holidays
@@ -170,6 +168,9 @@ for v in VIXFutureList:
                 date = row[0]
                 rowDateTemp = dateutil.parser.parse(date)
                 rowDate = rowDateTemp.date()
+                # calculate business days to expiry
+                bizDays = np.busday_count(rowDate, ExpiryDate, [1,1,1,1,1,0,0], Holidays)
+        
                 BDCount += 1
                 ## check whether row is in db
                 cur = con.cursor()
@@ -183,12 +184,12 @@ for v in VIXFutureList:
                     cur = con.cursor()
                     cur.execute('''INSERT into VIXFutures (TradeDate, Contract, Opn, High, Low, Clos, Settle, Chnge, Volume, EFP, OI, BDToExpiry, CDToExpiry)
                           values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], workdays.networkdays(rowDate, ExpiryDate, Holidays) -1, (ExpiryDate-rowDate).days))
+                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], str(bizDays), (ExpiryDate-rowDate).days))
                     con.commit()
                     cur.close()
                     if Decimal(row[5]) < 1.0:
                         print("1: Close is less than 1.0 for %s %s: %s", row[0], row[1], row[5]) 
-                except (MySQLdb.Error, MySQLdb.Warning) as e:
+                except (mdb.Error, mdb.Warning) as e:
                     print(e)
                     print("1: Error for %s %s:", date, row[1])
         else:
