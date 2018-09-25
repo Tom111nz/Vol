@@ -5,13 +5,13 @@ import requests
 #import _mysql
 #import MySQLdb as mdb
 import pymysql as mdb
-from dateutil.parser import parse
-import workdays
+#from dateutil.parser import parse
+#import workdays
 import datetime
-import dateutil
+#import dateutil
 import sys
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
+#from urllib.request import urlopen
+#from bs4 import BeautifulSoup
 import math
 
 con = mdb.connect(host="localhost",user="root",
