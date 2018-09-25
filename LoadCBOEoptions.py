@@ -9,7 +9,7 @@ import csv
 import pymysql as mdb
 from dateutil.parser import parse
 #import workdays
-#import datetime
+import datetime
 #import dateutil
 #import os
 #import time
@@ -115,7 +115,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
                     print(e)
                     print("1: Error for inserting into OptionExpiry: %s %s %s %s: Rolling Back" % (quote_date, root, rootOriginal, expiration))
                     # Rollback in case there is any error
-                    db.rollback()
+                    con.rollback()
                     break
 ##            elif ((OptionExpiryQueryResult[1] == 'SPX' and OptionExpiryQueryResult[2] == 'SPX' and root == 'SPX' and rootOriginal == 'SPX') or
 ##                  (OptionExpiryQueryResult[1] == 'SPXW' and OptionExpiryQueryResult[2] == 'SPXW' and root == 'SPXW' and rootOriginal == 'SPXW')):
@@ -149,7 +149,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
                     print(e)
                     print("1: Error for inserting into Strike: %s %s: Rolling Back" % (strike, option_type))
                     # Rollback in case there is any error
-                    db.rollback()
+                    con.rollback()
                     break
                 ## recover the StrikeID
                 cur = con.cursor()
@@ -177,7 +177,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
                     print(e)
                     print("1: Error for inserting into Underlying: %s %s: Rolling Back" % (OptionExpiryID, underlying_bid_1545))
                     # Rollback in case there is any error
-                    db.rollback()
+                    con.rollback()
                     break
             ##print("--- '%s' seconds to obtain UnderlyingID" % (time.time() - start_time))
             ##### OptionGreeks Table
@@ -197,7 +197,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
                     print(e)
                     print("1: Error for inserting into OptionGreeks: %s %s %s: Rolling Back" % (OptionExpiryID, StrikeID, bid_size_1545))
                     # Rollback in case there is any error
-                    db.rollback()
+                    con.rollback()
                     break
             ##print("--- '%s' seconds to insert OptionGreeks" % (time.time() - start_time))
             ##### EoD Table
@@ -217,7 +217,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
                     print(e)
                     print("1: Error for inserting into EoD: %s %s %s: Rolling Back" % (OptionExpiryID, StrikeID, bid_size_1545))
                     # Rollback in case there is any error
-                    db.rollback()
+                    con.rollback()
                     break
             ##print("--- '%s' seconds to insert EoD" % (time.time() - start_time))
 ##print("--- '%s' seconds ---" % (time.time() - start_time))

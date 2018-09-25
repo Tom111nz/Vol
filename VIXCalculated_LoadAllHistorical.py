@@ -1,15 +1,17 @@
 ## Calculate VIX and save into database
-from VIXFutureOptionExpiryList import VIXFutureOptionExpiryList
+#from VIXFutureOptionExpiryList import VIXFutureOptionExpiryList
 from calculateVIXFromSingleExpiry import calculateVIXFromSingleExpiry
 import sys
-import MySQLdb as mdb
+#import MySQLdb as mdb
+import pymysql as mdb
 import datetime
 from dateutil.parser import parse
+from InterpolateUSYield import interpolateUSYield
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol")
+                  passwd="password",db="Vol", port = 3307)
 #DeltaUsed = 0.7
-InterestRateUsed = 0.02
+#InterestRateUsed = 0.02
 calculateVIXFromSingleExpiry_PrintResults = False
 calculateVIXFromSingleExpiry_use30DaysToExpiry = False
 
@@ -114,6 +116,7 @@ for sheetNum, row in enumerate(expiriesList):
     #futureExpiryDatetime = datetime.datetime.strptime(futureExpiryString, "%Y-%m-%d")
     #optionExpiryString = row[2] + ' 08:30:00'
     optionExpiryDatetime = row
+    optionExpiryDateTimeYMD = datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day)
     optionExpiryString = optionExpiryDatetime.strftime("%Y-%m-%d %H:%M:%S")
     #optionExpiryDatetime = datetime.datetime.strptime(row, "%Y-%m-%d %H:%M:%S")
     FuturesContract = generateVIXFuturesString(optionExpiryDatetime)
@@ -144,15 +147,21 @@ for sheetNum, row in enumerate(expiriesList):
     cur.execute(sqlQuery)
     quoteDatesOptionsRaw = cur.fetchall()
     cur.close()
-    print('Option expiries that we calculate a VIX for')
+    #print('Option expiries that we calculate a VIX for')
     rowsInserted = 0
     for row in quoteDatesOptionsRaw:
         quoteDate = row[0]
-        if datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) <= datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day):
+        quoteDateDateTimeYMD = datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day)
+        if quoteDateDateTimeYMD <= optionExpiryDateTimeYMD:
             quoteDateKey = datetime.datetime.strftime(quoteDate, "%Y-%m-%d")
-            ## check is not in database already
-            checkSQL = ('Select * from VIXCalculated where quote_date = '"'%s'"' and FuturesContract = '"'%s'"' and OptionExpiration = '"'%s'"' and InterestRateUsed = '"'%s'"''  %
-                        (quoteDateKey, FuturesContract, optionExpiryString, InterestRateUsed))
+            #print(datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day))
+            #print(datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day))
+            InterestRateUsed = interpolateUSYield(quoteDate, optionExpiryDatetime)
+#            print(InterestRateUsed)
+#            sys.exit(0)
+            ## check is not in database already (potential to remove InterestRateUsed as a part of the primary key in the sql table)
+            checkSQL = ('Select * from VIXCalculated where quote_date = '"'%s'"' and FuturesContract = '"'%s'"' and OptionExpiration = '"'%s'"''  %
+                        (quoteDateKey, FuturesContract, optionExpiryString))
             cur = con.cursor()
             cur.execute(checkSQL)
             if cur.fetchone() is None:              
@@ -166,5 +175,5 @@ for sheetNum, row in enumerate(expiriesList):
                 rowsInserted = rowsInserted + 1
             else:
                 cur.close()
-    print('Rows inserted for ' + optionExpiryString + ': ' + str(rowsInserted))
+    #print('Rows inserted for ' + optionExpiryString + ': ' + str(rowsInserted))
 #print('VIXCalculated inserted %s rows' % str(rowsInserted)) 

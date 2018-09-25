@@ -6,11 +6,12 @@ import sys
 import pymysql as mdb
 import datetime
 from dateutil.parser import parse
+from InterpolateUSYield import interpolateUSYield
 
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol", port = 3307)
 #DeltaUsed = 0.7
-InterestRateUsed = 0.01
+#InterestRateUsed = 0.01
 calculateVIXFromSingleExpiry_PrintResults = False
 calculateVIXFromSingleExpiry_use30DaysToExpiry = False
 rowsInserted = 0
@@ -150,9 +151,10 @@ for sheetNum, row in enumerate(expiriesList):
         quoteDate = row[0]
         if datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) <= datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day):
             quoteDateKey = datetime.datetime.strftime(quoteDate, "%Y-%m-%d")
+            InterestRateUsed = interpolateUSYield(quoteDate, optionExpiryDatetime)
             ## check is not in database already
-            checkSQL = ('Select * from VIXCalculated where quote_date = '"'%s'"' and FuturesContract = '"'%s'"' and OptionExpiration = '"'%s'"' and InterestRateUsed = '"'%s'"''  %
-                        (quoteDateKey, FuturesContract, optionExpiryString, InterestRateUsed))
+            checkSQL = ('Select * from VIXCalculated where quote_date = '"'%s'"' and FuturesContract = '"'%s'"' and OptionExpiration = '"'%s'"''  %
+                        (quoteDateKey, FuturesContract, optionExpiryString))
             cur = con.cursor()
             cur.execute(checkSQL)
             if cur.fetchone() is None:              
