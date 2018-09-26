@@ -163,7 +163,7 @@ for v in VIXFutureList:
         ## compare the last Trade date with expiry date
         if lastRowTradeDate < ExpiryDate:
             ## this contract has not expired, so we work out the number of business days left ourselves
-            print("Contract "'%s'" has not expired yet!" % firstRowContract)
+            #print("Contract "'%s'" has not expired yet!" % firstRowContract)
             for row in my_list[startRow:]:
                 date = row[0]
                 rowDateTemp = dateutil.parser.parse(date)

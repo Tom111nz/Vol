@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Sep 26 20:04:44 2018
+
+@author: tomobrien
+"""
+## To scrape daily US Treasury yields into db
+import requests, datetime
+from bs4 import BeautifulSoup
+page = requests.get("https://www.treasury.gov/resource-center/data-chart-center/interest-rates/Pages/TextView.aspx?data=yield")
+print(page.status_code) # should be 200
+soup = BeautifulSoup(page.content, 'html.parser')
+print(soup)
+# loop through even rows first
+soup.find_all('tr', class_="evenrow")
+gridCells = soup.find_all('tr', class_="evenrow")
+newList = list()
+for c in gridCells:
+    longString = c.get_text(" ")
+    aList = longString.split(" ")
+    newList.append(aList)
+for row in newList:
+    if row[0] == '09/25/18':
+        print(row)date_string, format)
+        print(row)
+# now loop through odd rows
+datetime.datetime.strptime(date_string, format))
+datetime.datetime.strftime("%Y-%m-%d %H:%M:%S") # turn into string
+### Look for all dates greater than current date (get current max date from database)
+### work with dates as datetimes
+### loop through even rows and the odd rows
