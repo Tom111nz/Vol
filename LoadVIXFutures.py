@@ -215,7 +215,7 @@ for v in VIXFutureList:
                     cur.close()
                     if Decimal(row[5]) < 1.0:
                         print("1: Close is less than 1.0 for %s %s: %s", row[0], row[1], row[5]) 
-                except (MySQLdb.Error, MySQLdb.Warning) as e:
+                except (mdb.Error, mdb.Warning) as e:
                     print(e)
                     print("2: Error for %s %s:", date, row[1])
                 

@@ -40,8 +40,15 @@ with open("Historical_CBOE_Download.py") as f:
     code = compile(f.read(), "Historical_CBOE_Download.py", 'exec')
     exec(code)   
 logging.info('End SPX and VIX options')
+## Load US Treasury yields
+print("(5) Loading US Yields")
+logging.info('Start US Yields')
+with open("US_Treasury_Yields_Scrape.py") as f:
+    code = compile(f.read(), "US_Treasury_Yields_Scrape.py", 'exec')
+    exec(code)   
+logging.info('End US Yields')
 ## Calculate VIX
-print("(5) Calculate VIX")
+print("(6) Calculate VIX")
 logging.info('Start Calculate VIX')
 with open("VIXCalculated.py") as f:
     code = compile(f.read(), "VIXCalculated.py", 'exec')
