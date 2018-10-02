@@ -28,6 +28,9 @@ def Black76(oType,F, K, r, sigma, T):
 
     return theo, delta
 
+    
+    
+
 #tester = Black76("P", 19, 19, 0.1, 0.28, 0.75)
 #for row in tester:
 #    print(row)
