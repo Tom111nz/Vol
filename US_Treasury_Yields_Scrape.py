@@ -2,6 +2,14 @@
 import requests, datetime
 from bs4 import BeautifulSoup
 import pymysql as mdb
+
+def controlforNA(aRow):
+    if aRow.strip() == 'N/A':
+        val =  None
+    else:
+        val = float(aRow)/100.0
+    return val
+
 con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol", port = 3307)
 page = requests.get("https://www.treasury.gov/resource-center/data-chart-center/interest-rates/Pages/TextView.aspx?data=yield")
@@ -38,9 +46,9 @@ for row in newListSorted:
         try:
             print('INSERT into USTreasuryYields ' + scrappedDate.strftime("%Y-%m-%d"))
             cur = con.cursor()
-            cur.execute('''INSERT into USTreasuryYields (quote_date, 1M, 3M, 6M, 1Y, 2Y, 3Y, 5Y, 7Y, 10Y, 20Y, 30Y)
-                              values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                              (scrappedDate.strftime("%Y-%m-%d"), float(row[1])/100.0, float(row[2])/100.0, float(row[3])/100.0, float(row[4])/100.0, float(row[5])/100.0, float(row[6])/100.0, float(row[7])/100.0, float(row[8])/100.0, float(row[9])/100.0, float(row[10])/100.0, float(row[11])/100.0))
+            cur.execute('''INSERT into USTreasuryYields (quote_date, 1M, 2M, 3M, 6M, 1Y, 2Y, 3Y, 5Y, 7Y, 10Y, 20Y, 30Y)
+                              values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                              (scrappedDate.strftime("%Y-%m-%d"), controlforNA(row[1]), controlforNA(row[2]), controlforNA(row[3]), controlforNA(row[4]), controlforNA(row[5]), controlforNA(row[6]), controlforNA(row[7]), controlforNA(row[8]), controlforNA(row[9]), controlforNA(row[10]), controlforNA(row[11]), controlforNA(row[12])))
             con.commit()
             cur.close()
         except (mdb.Error, mdb.Warning) as e:

@@ -17,6 +17,7 @@ con = mdb.connect(host="localhost",user="root",
 #deltaTargetList = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
 deltaTargetList = [0.7]
 printToFile = True
+printToFileOptionRatio = True # if false prints usual graph
 displayChart = False
 calculateVIXFromSingleExpiry_PrintResults = False
 # VIX Future Name, VIX Future Expiry, SPX Option Expiry
@@ -424,6 +425,9 @@ for deltaTarget in deltaTargetList:
         strikeDeltaList = list()
         underlyingBid = list()
         pnlDict = {}
+        optionRatioList = list()
+        newOptionAfterRatio = list()
+        TTFEList = list()
         currentOptionPosition = 99 # to show we have no position
         optionPositionPerPoint = 100
         firstTimeThrough = True
@@ -540,6 +544,16 @@ for deltaTarget in deltaTargetList:
             strikeList.append(currentStrike)
             strikeDeltaList.append(currentStrikeDelta)
             underlyingBid.append(todayData[dKey['underling bid']])
+            TTFE = (futureExpiryDatetime - datetime.datetime.strptime(row, "%Y-%m-%d")).days / 365
+            TTFEList.append(max(TTFE, 1/365))
+            #print(str(TTFE) + ' ' + row)
+            if todayData[dKey['ask']] > 0 and todayData[dKey['calculatedVIX']] > 0:
+                optionRatio = max(math.pow(math.sqrt(TTFEList[-1]) * todayData[dKey['calculatedVIX']] / todayData[dKey['ask']], 2), sys.float_info.epsilon)
+            else:
+                optionRatio = sys.float_info.epsilon
+            optionRatioList.append(optionRatio) # (sqrt(TTE) * calcVIX / 30d put theo)^2
+            newOptionAfterRatio.append(todayData[dKey['ask']]/(math.sqrt(TTFEList[-1])/math.sqrt(optionRatioList[-1])))
+            #print(newOptionAfterRatio[-1])
             if firstTimeThrough:
                 cumOptionPnl.append(dailyOptionPnl)
                 cumVixFuturePnl.append(dailyVixFuturePnl)
@@ -575,8 +589,8 @@ for deltaTarget in deltaTargetList:
         book.add_sheet(futureName)
         print('futureName: ' + futureName)
         #print('sheetNum: ' + str(sheetNum))
-        listOfOutputsNames = ['Date', 'calculatedVIX', 'strike', 'strikeList', 'strikeDeltaList', 'underlyingBid', 'optionPosition', 'decisionList', 'optionTheo', 'bid Actual', 'ask Actual', 'bid 30d Put', 'ask 30d Put', 'imp_volActual', 'vega_Actual', 'vixFuturePosition', 'VIXFuturesettle', 'VixHigh', 'VixLow', 'VixClos', 'dailyVixFuturePnlList', 'cumVixFuturePnl', 'dailyNaiveShortOptionPnlList', 'cumNaiveShortOptionPnL', 'dailyOptionPnlList', 'cumOptionPnl', 'dailyPnlList', 'cumDailyPnl']
-        listOfOutputs = [dateList, calculatedVIX, strike, strikeList, strikeDeltaList, underlyingBid, optionPosition, decisionList, optionTheo, bidActual, askActual, bid, ask, imp_volActual, vega_Actual, vixFuturePosition, VIXFuturesettle, VixHigh, VixLow, VixClos, dailyVixFuturePnlList, cumVixFuturePnl, dailyNaiveShortOptionPnlList, cumNaiveShortOptionPnL, dailyOptionPnlList, cumOptionPnl, dailyPnlList, cumDailyPnl]
+        listOfOutputsNames = ['Date', 'calculatedVIX', 'strike', 'strikeList', 'strikeDeltaList', 'underlyingBid', 'optionPosition', 'decisionList', 'optionTheo', 'bid Actual', 'ask Actual', 'bid 30d Put', 'ask 30d Put', 'imp_volActual', 'vega_Actual', 'vixFuturePosition', 'VIXFuturesettle', 'VixHigh', 'VixLow', 'VixClos', 'optionRatioList', 'TTFEList', 'dailyVixFuturePnlList', 'cumVixFuturePnl', 'dailyNaiveShortOptionPnlList', 'cumNaiveShortOptionPnL', 'dailyOptionPnlList', 'cumOptionPnl', 'dailyPnlList', 'cumDailyPnl']
+        listOfOutputs = [dateList, calculatedVIX, strike, strikeList, strikeDeltaList, underlyingBid, optionPosition, decisionList, optionTheo, bidActual, askActual, bid, ask, imp_volActual, vega_Actual, vixFuturePosition, VIXFuturesettle, VixHigh, VixLow, VixClos, optionRatioList, TTFEList, dailyVixFuturePnlList, cumVixFuturePnl, dailyNaiveShortOptionPnlList, cumNaiveShortOptionPnL, dailyOptionPnlList, cumOptionPnl, dailyPnlList, cumDailyPnl]
         imp_volActual_100 = list()
         for arow in imp_volActual: # for graph
             imp_volActual_100.append(arow * 100)
@@ -593,19 +607,34 @@ for deltaTarget in deltaTargetList:
                 print(inst)
         # print graph to pdf
         if printToFile:
-            fig = plt.figure()
-            ax = fig.add_subplot(111) 
-            xAxis = range(len(calculatedVIX))
-    ##                print('xAxis')
-    ##                print(str(len(xAxis)))
-            ax.plot(xAxis, calculatedVIX, 'r-', xAxis, VIXFuturesettle, 'g-', xAxis, imp_volActual_100, 'r--')
-            axes = plt.gca()
-            #axes.set_ylim([0,min(300, max(calculatedVIX)+20, max(VIXFuturesettle)+20)])
-            ax2 = ax.twinx()
-            ax2.plot(xAxis, underlyingBid, 'b--')#, strikeXD, 'r--')
-            ax.legend(['Calculated VIX', 'VIX Future', '30d Put implied vol'], loc='best')
-            #ax2.legend(['Underlying', 'Strike'], loc=3)
-            plt.title(futureName)
+            if printToFileOptionRatio:
+                fig = plt.figure()
+                ax = fig.add_subplot(111) 
+                xAxis = range(len(calculatedVIX))
+        ##                print('xAxis')
+        ##                print(str(len(xAxis)))
+                ax.plot(xAxis, calculatedVIX, 'r-', xAxis, VIXFuturesettle, 'g-', xAxis, imp_volActual_100, 'k--')
+                axes = plt.gca()
+                #axes.set_ylim([0,min(300, max(calculatedVIX)+20, max(VIXFuturesettle)+20)])
+                ax2 = ax.twinx()
+                ax2.plot(xAxis, optionRatioList, 'b-')#, strikeXD, 'r--')
+                ax.legend(['Calculated VIX', 'VIX Future', '30d Put implied vol'], loc='best')
+                #ax2.legend(['Underlying', 'Strike'], loc=3)
+                plt.title(futureName)
+            else:
+                fig = plt.figure()
+                ax = fig.add_subplot(111) 
+                xAxis = range(len(calculatedVIX))
+        ##                print('xAxis')
+        ##                print(str(len(xAxis)))
+                ax.plot(xAxis, calculatedVIX, 'r-', xAxis, VIXFuturesettle, 'g-', xAxis, imp_volActual_100, 'r--')
+                axes = plt.gca()
+                #axes.set_ylim([0,min(300, max(calculatedVIX)+20, max(VIXFuturesettle)+20)])
+                ax2 = ax.twinx()
+                ax2.plot(xAxis, underlyingBid, 'b--')#, strikeXD, 'r--')
+                ax.legend(['Calculated VIX', 'VIX Future', '30d Put implied vol'], loc='best')
+                #ax2.legend(['Underlying', 'Strike'], loc=3)
+                plt.title(futureName)
             if displayChart:
                 plt.show()
             if fig is not None:
