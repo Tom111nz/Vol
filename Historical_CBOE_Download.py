@@ -18,7 +18,7 @@ ftp = FTP(directory)   # connect to host, default port
 
 ftp.login(user=userName, passwd=password)
 ##ftp.cwd("/order_609/UnderlyingOptionsEODCalcs/") # navigate to the directory for historical data
-ftp.cwd("subscriptions/order_000003058/item_000004473/") # annual subscription
+ftp.cwd("subscriptions/order_000006726/item_000009194/") # annual subscription
 ftp.set_pasv(False)
 listOfZipFiles = ftp.nlst()
 
