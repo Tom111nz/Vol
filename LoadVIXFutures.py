@@ -1,5 +1,6 @@
 from __future__ import print_function
-from datetime import date, datetime, timedelta
+#from datetime import date, datetime, timedelta
+import datetime
 import csv
 import requests
 #import _mysql
@@ -7,12 +8,11 @@ import requests
 import pymysql as mdb
 from dateutil.parser import parse
 #import workdays
-import datetime
 import dateutil
 import sys
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
-from decimal import *
+#from urllib.request import urlopen
+#from bs4 import BeautifulSoup
+import decimal
 import numpy as np
 
 def getVixFutureExpiry(futureDateCode):
@@ -180,15 +180,17 @@ for v in VIXFutureList:
                     continue # data is already in database
                 cur.close()
                 try:
-                    print("Inserting: '%s' and '%s'" % (firstRowContract, parse(date).strftime("%Y-%m-%d")))
-                    cur = con.cursor()
-                    cur.execute('''INSERT into VIXFutures (TradeDate, Contract, Opn, High, Low, Clos, Settle, Chnge, Volume, EFP, OI, BDToExpiry, CDToExpiry)
-                          values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], str(bizDays), (ExpiryDate-rowDate).days))
-                    con.commit()
-                    cur.close()
-                    if Decimal(row[5]) < 1.0:
-                        print("1: Close is less than 1.0 for %s %s: %s", row[0], row[1], row[5]) 
+                    if decimal.Decimal(row[5]) < 1.0:
+                        print("1: Not inserting. Close is less than 1.0 for %s %s: %s" & (row[0], row[1], row[5])) 
+                    else:
+                        print("Inserting: '%s' and '%s'" % (firstRowContract, parse(date).strftime("%Y-%m-%d")))
+                        cur = con.cursor()
+                        cur.execute('''INSERT into VIXFutures (TradeDate, Contract, Opn, High, Low, Clos, Settle, Chnge, Volume, EFP, OI, BDToExpiry, CDToExpiry)
+                              values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                              (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], str(bizDays), (ExpiryDate-rowDate).days))
+                        con.commit()
+                        cur.close()
+                    
                 except (mdb.Error, mdb.Warning) as e:
                     print(e)
                     print("1: Error for %s %s:", date, row[1])
@@ -206,15 +208,17 @@ for v in VIXFutureList:
                     continue # data is in database
                 cur.close()
                 try:
-                    print("Inserting: '%s' and '%s'" % (firstRowContract, parse(date).strftime("%Y-%m-%d")))
-                    cur = con.cursor()
-                    cur.execute('''INSERT into VIXFutures (TradeDate, Contract, Opn, High, Low, Clos, Settle, Chnge, Volume, EFP, OI, BDToExpiry, CDToExpiry)
-                          values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                          (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], BDInContract-BDCount-startRow, (ExpiryDate-rowDate).days))
-                    con.commit()
-                    cur.close()
-                    if Decimal(row[5]) < 1.0:
-                        print("1: Close is less than 1.0 for %s %s: %s", row[0], row[1], row[5]) 
+                    if decimal.Decimal(row[5]) < 1.0:
+                        print("2: Not inserting. Close is less than 1.0 for %s %s: %s" % (row[0], row[1], row[5])) 
+                    else:
+                        print("Inserting: '%s' and '%s'" % (firstRowContract, parse(date).strftime("%Y-%m-%d")))
+                        cur = con.cursor()
+                        cur.execute('''INSERT into VIXFutures (TradeDate, Contract, Opn, High, Low, Clos, Settle, Chnge, Volume, EFP, OI, BDToExpiry, CDToExpiry)
+                              values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                              (parse(date).strftime("%Y-%m-%d %H:%M:%S"), row[1].replace(' 20', ' '), row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], BDInContract-BDCount-startRow, (ExpiryDate-rowDate).days))
+                        con.commit()
+                        cur.close()
+                    
                 except (mdb.Error, mdb.Warning) as e:
                     print(e)
                     print("2: Error for %s %s:", date, row[1])

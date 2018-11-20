@@ -32,7 +32,7 @@ import datetime
 ##     for i in installed_packages])
 ##print(installed_packages_list)
 
-def getDeltaThroughTime(expiration, deltaTarget, optionType):
+def getDeltaThroughTime(expiration, deltaTarget, optionType, outputToCSV = False):
     con = mdb.connect(host="localhost",user="root",
                   passwd="password",db="Vol", port = 3307)
 
@@ -82,7 +82,8 @@ def getDeltaThroughTime(expiration, deltaTarget, optionType):
     idxX = df.groupby(df['quote_raw'])['deltalessX'].idxmin()
     closestXDStrike = df.loc[idxX, strikeDataRawHeaders]
     ## output to csv
-    #closestXDStrike.to_csv('tester70.csv', sep=' ')
+    if outputToCSV:
+        closestXDStrike.to_csv(datetime.datetime.now().strftime("%Y-%m-%d") + '_' + expiration[0:10] + '.csv', sep=' ')
 ##    for key, value in closestXDStrike.set_index('quote_raw').T.to_dict('list').items():
 ##        print(key)
 ##        print(value)
