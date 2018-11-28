@@ -15,6 +15,10 @@ import sys
 import decimal
 import numpy as np
 
+global con
+con = mdb.connect(host="localhost",user="root",
+                  passwd="password",db="Vol", port = 3307)
+
 def getVixFutureExpiry(futureDateCode):
     cur = con.cursor()
     sqlQuery = "select expiryDate from VIXFuturesExpiry where Contract = "'"%s"'"" % futureDateCode
@@ -25,9 +29,6 @@ def getVixFutureExpiry(futureDateCode):
         return None
     else:
         return res[0]
-
-con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol", port = 3307)
 
 contractExpiries = ['F', 'G', 'H', 'J', 'K', 'M', 'N', 'Q', 'U', 'V', 'X', 'Z']
 contractExpiriesMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -181,7 +182,7 @@ for v in VIXFutureList:
                 cur.close()
                 try:
                     if decimal.Decimal(row[5]) < 1.0:
-                        print("1: Not inserting. Close is less than 1.0 for %s %s: %s" & (row[0], row[1], row[5])) 
+                        print("1: Not inserting. Close is less than 1.0 for %s %s: %s" % (str(row[0]), str(row[1]), str(row[5]))) 
                     else:
                         print("Inserting: '%s' and '%s'" % (firstRowContract, parse(date).strftime("%Y-%m-%d")))
                         cur = con.cursor()
@@ -209,7 +210,7 @@ for v in VIXFutureList:
                 cur.close()
                 try:
                     if decimal.Decimal(row[5]) < 1.0:
-                        print("2: Not inserting. Close is less than 1.0 for %s %s: %s" % (row[0], row[1], row[5])) 
+                        print("2: Not inserting. Close is less than 1.0 for %s %s: %s" % (str(row[0]), str(row[1]), str(row[5]))) 
                     else:
                         print("Inserting: '%s' and '%s'" % (firstRowContract, parse(date).strftime("%Y-%m-%d")))
                         cur = con.cursor()

@@ -112,6 +112,7 @@ for item in expiries:
 
 
 #for sheetNum, row in enumerate(VIXFutureOptionExpiryList()):
+print('Option expiries that we calculate a VIX for')
 for sheetNum, row in enumerate(expiriesList):    
     #FuturesContract = row[0]
     #futureExpiryString = row[1]
@@ -146,7 +147,6 @@ for sheetNum, row in enumerate(expiriesList):
     cur.execute(sqlQuery)
     quoteDatesOptionsRaw = cur.fetchall()
     cur.close()
-    print('Option expiries that we calculate a VIX for')
     for row in quoteDatesOptionsRaw:
         quoteDate = row[0]
         if datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) <= datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day):
