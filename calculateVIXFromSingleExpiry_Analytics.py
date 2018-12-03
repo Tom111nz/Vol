@@ -223,7 +223,6 @@ for deltaTarget in deltaTargetList:
         optionExpiryString = row[2] + ' 08:30:00'
         optionExpiryDatetime = datetime.datetime.strptime(optionExpiryString, "%Y-%m-%d %H:%M:%S")
 
-    ##    VIXAnalyticsClass = VIXFutureDict[key]
         sqlQuery = ('select oe.quote_date, und.underlying_bid_1545 from OptionExpiry oe '
                     'left join underlying und on oe.id = und.optionexpiryid '
                     'where oe.root = "SPX" '
@@ -233,7 +232,6 @@ for deltaTarget in deltaTargetList:
         cur.execute(sqlQuery)
         quoteDatesOptionsRaw = cur.fetchall()
         cur.close()
-        #print(sqlQuery)
         # Now get actual VIXFuture close for each day (if possible)
         sqlQuery = ('select TradeDate, Settle from VIXFutures '
                     'where contract = '"'%s'"' '
@@ -246,11 +244,6 @@ for deltaTarget in deltaTargetList:
         VIXFuturesDataRawDict = {}
         for row in VIXFuturesDataRaw:
             VIXFuturesDataRawDict[datetime.datetime.strftime(row[0], "%Y-%m-%d")] = row[1]
-##        for i in VIXFuturesDataRawDict.keys():
-##            print(str(i))
-##            print(str(VIXFuturesDataRawDict[i]))
-##            print(str(VIXFuturesDataRawDict['2016-11-21']))
-##        sys.exit(0)
         # now get the VIX details for the period
         sqlQuery = ('select TradeDate, Opn, High, Low, Clos from VIX '
         'where tradeDate >= (select left(min(quote_date), 10) from optionexpiry where root in ("SPX") and expiration = '"'%s'"' ) ' % optionExpiryString)
@@ -296,22 +289,11 @@ for deltaTarget in deltaTargetList:
                 #optionExpiryDatetime = datetime.datetime.strptime(VIXAnalyticsClass.optionExpiryDate, "%Y-%m-%d %H:%M:%S")
                 if datetime.datetime(quoteDate.year, quoteDate.month, quoteDate.day) < datetime.datetime(optionExpiryDatetime.year, optionExpiryDatetime.month, optionExpiryDatetime.day): 
                     quoteDateKey = datetime.datetime.strftime(quoteDate, "%Y-%m-%d")
-                    #quoteDateKey = '2009-06-25'
-                    #print('quoteDateKey: ' + str(quoteDateKey))
                     iList = list()
                     if quoteDateKey in CalculatedVIXDataRawDict:
                         aVIX = CalculatedVIXDataRawDict[quoteDateKey]
                     else:
                         aVIX = 0.0
-##                    if calcVix:
-##                        try:
-##                            interpolatedYield = interpolateUSYield(quoteDate, optionExpiryDatetime)
-##                        except:
-##                            interpolatedYield = 0.01
-##                            print('Error: interpolatedYield = 0.01 ' + optionExpiryString + " : " + str(datetime.datetime.strftime(row[0], "%Y-%m-%d")))
-##                        aVIX = calculateVIXFromSingleExpiry(quoteDateKey, optionExpiryString, interpolatedYield, calculateVIXFromSingleExpiry_PrintResults)
-##                    else:
-##                        aVIX = 0.0
                     iList.append(aVIX)
                     iList.append(underlyingBid)
                     # add the VIX Futures data
