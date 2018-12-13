@@ -8,7 +8,27 @@ import logging
 import datetime
 import traceback
 import pdb
+import sys
 
+def setup_custom_logger(name):
+    formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S')
+    handler = logging.FileHandler('/Users/tomobrien/Git/Vol/CBOENewLogger.txt', mode='w')
+    handler.setFormatter(formatter)
+    screen_handler = logging.StreamHandler(stream=sys.stdout)
+    screen_handler.setFormatter(formatter)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    logger.addHandler(screen_handler)
+    return logger
+
+
+""" Crontab
+ https://superuser.com/questions/201172/mac-crontab-is-never-created
+ 01 20 * * 2-6 /Users/tomobrien/anaconda/bin/python /Users/tomobrien/Git/Vol/LoadAllCBOEData.py > /Users/tomobrien/Git/Vol/crontabLogging.log
+
+"""
 def bugHunter(err):
     print(err)
     template = "An exception of type {0} occurred. Arguments:\n{1!r}"
@@ -17,72 +37,73 @@ def bugHunter(err):
     print(traceback.format_exc())
     pdb.post_mortem()
 
-def runAll():
-    logging.basicConfig(filename='LoadAllCBOEData.log', level=logging.DEBUG)
-    now = datetime.datetime.now()
-    ## Load VIX
-    print("(1) Loading VIX")
-    logging.info('Program started: %s' % now)
-    logging.info('Start VIX')
-    with open("LoadVIX.py") as f:
-        code = compile(f.read(), "LoadVIX.py", 'exec')
+#def runAll():
+#logging.basicConfig(filename='LoadAllCBOEData.log', level=logging.DEBUG)
+logger = setup_custom_logger('myapp')
+now = datetime.datetime.now()
+## Load VIX
+print("(1) Loading VIX")
+logger.info('Program started: %s' % now)
+logger.info('Start VIX')
+with open("/Users/tomobrien/Git/Vol/LoadVIX.py") as f:
+    code = compile(f.read(), "LoadVIX.py", 'exec')
+    exec(code)
+logger.info('End VIX')
+## Load VIX Futures
+print("(2) Loading VIX Futures")
+logger.info('Start VIX Futures')
+with open("/Users/tomobrien/Git/Vol/LoadVIXFutures.py") as f:
+    code = compile(f.read(), "LoadVIXFutures.py", 'exec')
+    try:
         exec(code)
-    logging.info('End VIX')
-    ## Load VIX Futures
-    print("(2) Loading VIX Futures")
-    logging.info('Start VIX Futures')
-    with open("LoadVIXFutures.py") as f:
-        code = compile(f.read(), "LoadVIXFutures.py", 'exec')
-        try:
-            exec(code)
-        except Exception as err:
-            bugHunter(err)
+    except Exception as err:
+        bugHunter(err)
 #            print(Exception)
 #            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
 #            message = template.format(type(err).__name__, err.args)
 #            print(message)
 #            print(traceback.format_exc())
 #            pdb.post_mortem()
-            print("Error in Loading Vix Futures but we carry on ....")
-    logging.info('End VIX Futures')            
-    ## Load VIX Future implied interest rate
-    print("(3) Loading VIX Futures Implied Rate")
-    logging.info('Start VIX Futures Implied Rate')
-    with open("LoadVIXFutureInterestRate.py") as f:
-        code = compile(f.read(), "LoadVIXFutureInterestRate.py", 'exec')
-        try:
-            exec(code)
-        except Exception as err:
-            bugHunter(err)
-            #print(Exception)
-            print("Error in Loading VIX Futures Implied Rate but we carry on ....")
-    logging.info('End VIX Futures Implied Rate') 
-    ## SPX and VIX options
-    print("(4) Loading SPX and VIX options")
-    logging.info('Start SPX and VIX options')
-    with open("Historical_CBOE_Download.py") as f:
-        code = compile(f.read(), "Historical_CBOE_Download.py", 'exec')
-        exec(code)   
-    logging.info('End SPX and VIX options')
-    ## Load US Treasury yields
-    print("(5) Loading US Yields")
-    logging.info('Start US Yields')
-    with open("US_Treasury_Yields_Scrape.py") as f:
-        code = compile(f.read(), "US_Treasury_Yields_Scrape.py", 'exec')
-        exec(code)   
-    logging.info('End US Yields')
-    ## Calculate VIX
-    print("(6) Calculate VIX")
-    logging.info('Start Calculate VIX')
-    with open("VIXCalculated.py") as f:
-        code = compile(f.read(), "VIXCalculated.py", 'exec')
-        exec(code)   
-    logging.info('End Calculate VIX')
-    ## check for new VIX futures
-    print('check for new VIX futures')
-    print('https://markets.cboe.com/us/futures/market_statistics/settlement/')
-    nowEnd = datetime.datetime.now()
-    logging.info('Program ended: %s' % nowEnd)
+        print("Error in Loading Vix Futures but we carry on ....")
+logger.info('End VIX Futures')            
+## Load VIX Future implied interest rate
+print("(3) Loading VIX Futures Implied Rate")
+logger.info('Start VIX Futures Implied Rate')
+with open("/Users/tomobrien/Git/Vol/LoadVIXFutureInterestRate.py") as f:
+    code = compile(f.read(), "LoadVIXFutureInterestRate.py", 'exec')
+    try:
+        exec(code)
+    except Exception as err:
+        bugHunter(err)
+        #print(Exception)
+        print("Error in Loading VIX Futures Implied Rate but we carry on ....")
+logger.info('End VIX Futures Implied Rate') 
+## SPX and VIX options
+print("(4) Loading SPX and VIX options")
+logger.info('Start SPX and VIX options')
+with open("/Users/tomobrien/Git/Vol/Historical_CBOE_Download.py") as f:
+    code = compile(f.read(), "Historical_CBOE_Download.py", 'exec')
+    exec(code)   
+logger.info('End SPX and VIX options')
+## Load US Treasury yields
+print("(5) Loading US Yields")
+logger.info('Start US Yields')
+with open("/Users/tomobrien/Git/Vol/US_Treasury_Yields_Scrape.py") as f:
+    code = compile(f.read(), "US_Treasury_Yields_Scrape.py", 'exec')
+    exec(code)   
+logger.info('End US Yields')
+## Calculate VIX
+print("(6) Calculate VIX")
+logger.info('Start Calculate VIX')
+with open("/Users/tomobrien/Git/Vol/VIXCalculated.py") as f:
+    code = compile(f.read(), "VIXCalculated.py", 'exec')
+    exec(code)   
+logger.info('End Calculate VIX')
+## check for new VIX futures
+print('check for new VIX futures')
+print('https://markets.cboe.com/us/futures/market_statistics/settlement/')
+nowEnd = datetime.datetime.now()
+logger.info('Program ended: %s' % nowEnd)
 
 def my_listener(event):
     if event.exception:

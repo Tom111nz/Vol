@@ -6,6 +6,9 @@ Created on Mon Oct 29 20:48:01 2018
 @author: tomobrien
 """
 
+""" next steps: more work on ratio. Use ratio to close position. Close and re-open position on same day ?
+"""
+
 from GetDeltaThroughTime import getDeltaThroughTime
 from theDataEngine import theDataEngine
 import matplotlib.pyplot as plt
