@@ -34,12 +34,14 @@ deltaTargetList = [0.7]
 
 #for row in expiryDetails:
 #    getDeltaThroughTime(row[2] + ' 08:30:00', 0.7, 'p', True)
-
 dKey, deltaDict = theDataEngine(deltaTargetList, expiryDetails)
-# to retrieve output: deltaDict[0.7]['F (Jan 18)']['2018-02-15'][dKey['calculatedVIX']]
+# to retrieve output from above: deltaDict[0.7]['F (Jan 18)']['2018-02-15'][dKey['calculatedVIX']]
+
 for delta in deltaTargetList:
     pp = PdfPages('StrategyCheck_' + str(now.strftime("%Y-%m-%d")) + '_' + str(delta) + '.pdf') 
     for futuresName in [row[0] for row in expiryDetails]:
+        futuresExpiry = row[1]
+        optionExpiry = row[2]
         aDict = deltaDict[delta][futuresName]
         calculatedVix = list()
         vixFuture = list()
@@ -62,7 +64,9 @@ for delta in deltaTargetList:
             bidRatioed.append(bid[-1]/(ratioCalc[0]*sqrtTTE[-1]))
             days.append(day)
             daysDatetime.append(datetime.datetime.strptime(day, "%Y-%m-%d"))
-        # calculate the ratio
+# positions and pnl
+        
+# Graphs
         fig = plt.figure() # in inches!
         plt.rc('figure', figsize=(12, 8))
         ax = fig.add_subplot(111) 

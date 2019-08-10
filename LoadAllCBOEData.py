@@ -26,8 +26,15 @@ def setup_custom_logger(name):
 
 """ Crontab
  https://superuser.com/questions/201172/mac-crontab-is-never-created
+ Edit: crontab -e
+ hit i
+ then hit Esc
+ type :wq to save
  01 20 * * 2-6 /Users/tomobrien/anaconda/bin/python /Users/tomobrien/Git/Vol/LoadAllCBOEData.py > /Users/tomobrien/Git/Vol/crontabLogging.log
-
+ 
+ automate db backup
+ mysqldump -uroot -p MyDatabase >/home/users/backup_MyDB/$(date +%F)_full_myDB.sql
+****** Location of external drive is: /Volumes/"Seagate Expansion Drive"/Vol
 """
 def bugHunter(err):
     print(err)
@@ -41,7 +48,7 @@ def bugHunter(err):
 #logging.basicConfig(filename='LoadAllCBOEData.log', level=logging.DEBUG)
 logger = setup_custom_logger('myapp')
 now = datetime.datetime.now()
-## Load VIX
+## Load VIX 
 print("(1) Loading VIX")
 logger.info('Program started: %s' % now)
 logger.info('Start VIX')

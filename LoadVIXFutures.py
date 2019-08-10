@@ -120,7 +120,7 @@ for v in VIXFutureList:
             download = s.get(v)
         except requests.exceptions.RequestException as e:
             print(v)
-            print("Error1: Cannot get this file from CBOE webpage so we assume no subsequent files are available and we exit: 's%'" % v)
+            print("Error1: Cannot get this file from CBOE webpage so we assume no subsequent files are available and we exit: "'s%'"" % v)
             sys.exit(0)
         decoded_content = download.content.decode('utf-8')#
         cr = csv.reader(decoded_content.splitlines(), delimiter=',')
