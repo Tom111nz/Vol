@@ -1,6 +1,6 @@
 ## To scrape daily US Treasury yields into db
 import requests, datetime
-from bs4 import BeautifulSoup
+import bs4
 import pymysql as mdb
 
 def controlforNA(aRow):
@@ -11,10 +11,11 @@ def controlforNA(aRow):
     return val
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol", port = 3307)
+                  passwd="Bright1",db="Vol", port = 3306)
 page = requests.get("https://www.treasury.gov/resource-center/data-chart-center/interest-rates/Pages/TextView.aspx?data=yield")
+
 print('status code: ' + str(page.status_code)) # should be 200
-soup = BeautifulSoup(page.content, 'html.parser')
+soup = bs4.BeautifulSoup(page.content, 'html.parser')
 
 # loop through even and odd rows
 gridCellsEven = soup.find_all('tr', class_="evenrow")

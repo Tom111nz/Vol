@@ -23,7 +23,7 @@ ftp.set_pasv(True)
 listOfZipFiles = ftp.nlst()
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password", db="Vol", port = 3307)
+                  passwd="Bright1", db="Vol", port = 3306)
 cur = con.cursor()
 
 def gettext(ftp, filename, outfile=None):
@@ -43,7 +43,7 @@ def getbinary(ftp, filename, outfile=None):
         print("Try agin ...")
         ftp.retrbinary("RETR " + filename, outfile.write)
 
-scriptpath = os.path.dirname('/Users/tomobrien/Documents/python/') #__file__
+scriptpath = os.path.dirname('C:\\Temp') #__file__
 fileDirectory = scriptpath + "/CBOE_History/"
 ## get latest date in database
 lastDateInDbQuery = "select substring(max(quote_date), 1, 10) from optionexpiry"

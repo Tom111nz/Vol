@@ -17,18 +17,29 @@ import numpy as np
 
 global con
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol", port = 3307)
+                  passwd="Bright1",db="Vol", port = 3306)
 
 def getVixFutureExpiry(futureDateCode):
     cur = con.cursor()
-    sqlQuery = "select expiryDate from VIXFuturesExpiry where Contract = "'"%s"'"" % futureDateCode
-    cur.execute(sqlQuery)
+    cur.execute(
+        "SELECT expiryDate FROM VIXFuturesExpiry WHERE Contract = %s",
+        (futureDateCode,)
+    )
     res = cur.fetchone()
     cur.close()
-    if res is None:
-        return None
-    else:
-        return res[0]
+    return None if res is None else res[0]
+
+
+
+# Increase CSV field size limit to the maximum possible on this platform
+field_size_limit = sys.maxsize
+while True:
+    try:
+        csv.field_size_limit(field_size_limit)
+        break
+    except OverflowError:
+        field_size_limit = int(field_size_limit / 10)
+
 
 contractExpiries = ['F', 'G', 'H', 'J', 'K', 'M', 'N', 'Q', 'U', 'V', 'X', 'Z']
 contractExpiriesMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -37,30 +48,32 @@ now = datetime.datetime.now()
 
 ## We go to the website and download the data for the rest of this year and for all of next year
 
-thisYear = str(now.year)
+thisMonth = now.month # added 5-Mar-2026 revert to now.month
+thisYear = now.year  # added 5-Mar-2026 revert to str(now.year)
 VIXFutureList = list()
 
-for i, mon in enumerate(contractExpiries[now.month -1:]):
+for i, mon in enumerate(contractExpiries[thisMonth -1:]):
     #aFile = 'http://cfe.cboe.com/Publish/ScheduledTask/MktData/datahouse/CFE_' + mon + thisYear[2:] + '_VX.csv'
     #print(mon + ' (' + contractExpiriesMonths[now.month -1+i] + ' ' + thisYear[2:] + ')')
-    expiryDate = getVixFutureExpiry(mon + ' (' + contractExpiriesMonths[now.month -1+i] + ' ' + thisYear[2:] + ')')
+    expiryDate = getVixFutureExpiry(mon + ' (' + contractExpiriesMonths[thisMonth -1+i] + ' ' + str(thisYear)[2:] + ')')
     if expiryDate is None:
         break
     else:
-        aFile = 'https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/' + str(expiryDate) #+ '/CFE_' + mon + thisYear[2:] + '_VX.csv'
+        aFile = 'https://cdn.cboe.com/data/us/futures/market_statistics/historical_data/VX/VX_' + str(expiryDate) + '.csv'
+
     #print(aFile)
     #print('https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/2018-03-21/CFE_H18_VX.csv')
     #sys.exit(0)
     #https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/2018-04-18
         VIXFutureList.append(aFile)
-nextYear = str(now.year + 1)
+nextYear = str(thisYear + 1)
 for i, mon in enumerate(contractExpiries):
     #aFile = 'http://cfe.cboe.com/Publish/ScheduledTask/MktData/datahouse/CFE_' + mon + nextYear[2:] + '_VX.csv'
     expiryDate = getVixFutureExpiry(mon + ' (' + contractExpiriesMonths[i] + ' ' + nextYear[2:] + ')')
     if expiryDate is None:
         break
     else:
-        aFile = 'https://markets.cboe.com/us/futures/market_statistics/historical_data/products/csv/VX/' + str(expiryDate) #+ '/CFE_' + mon + thisYear[2:] + '_VX.csv'
+        aFile = 'https://cdn.cboe.com/data/us/futures/market_statistics/historical_data/VX/VX_' + str(expiryDate) + '.csv'
 
         VIXFutureList.append(aFile)
         
@@ -140,15 +153,34 @@ for v in VIXFutureList:
         #print(v)
         #print(my_list[startRow])
         ## put in check for contract which has not expired
-        firstRow = my_list[startRow]
-        firstRowContract = str(firstRow[1]).replace(' 20', ' ') #28-Mar-18 due to data format change on cboe website
+        # copilot replace firstRow = my_list[startRow]
+        # copilot replace firstRowContract = str(firstRow[1]).replace(' 20', ' ') #28-Mar-18 due to data format change on cboe website
+
+        # Find the first valid data row
+        firstRow = None
+        for row in my_list[startRow:]:
+            if len(row) >= 2 and row[1].strip():
+                firstRow = row
+                break
+
+        if firstRow is None:
+            print(f"Skipping file (no valid data rows): {v}")
+            continue
+
+        firstRowContract = firstRow[1].replace(' 20', ' ')
+
         #print(firstRowContract)
         cur = con.cursor()
-        cur.execute("SELECT ExpiryDate from VIXFuturesExpiry where Contract = "'"%s"'"" % firstRowContract)
+
+        cur.execute(
+            "SELECT ExpiryDate FROM VIXFuturesExpiry WHERE Contract = %s",
+            (firstRowContract,)
+        )
+
         rawExpiry = cur.fetchone()
         cur.close()
         if rawExpiry is None:
-            print("No expiry in VIXFuturesExpiry for "'%s'": Go to http://www.cboe.com/delayedquote/futures-quotes ... ending this programme ..." % firstRowContract)
+            print("No expiry in VIXFuturesExpiry for "'%s'": Go to https://www.cboe.com/us/futures/market_statistics/settlement/ ... ending this programme ..." % firstRowContract)
             break
         ExpiryDate = rawExpiry[0]
         lastRowTradeDate1 = dateutil.parser.parse(my_list[-1][0])
@@ -175,7 +207,11 @@ for v in VIXFutureList:
                 BDCount += 1
                 ## check whether row is in db
                 cur = con.cursor()
-                cur.execute("SELECT TradeDate from VIXFutures where Contract = "'"%s"'" and TradeDate = "'"%s"'"" % (firstRowContract, parse(date).strftime("%Y-%m-%d")))
+                cur.execute(
+                    "SELECT TradeDate FROM VIXFutures WHERE Contract = %s AND TradeDate = %s",
+                    (firstRowContract, parse(date).strftime("%Y-%m-%d"))
+                )
+
                 if cur.fetchone() is not None:
                     cur.close()
                     continue # data is already in database

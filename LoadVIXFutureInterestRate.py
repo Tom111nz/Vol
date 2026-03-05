@@ -15,7 +15,7 @@ import sys
 import math
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol", port = 3307)
+                  passwd="Bright1",db="Vol", port = 3306)
 
 thirtyDaysInMinutes = 30*24*60
 oneYearInMinutes = 365*24*60
