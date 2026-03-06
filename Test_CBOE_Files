@@ -1,0 +1,62 @@
+import os
+from ftplib import FTP
+import zipfile
+import io
+import os
+import csv
+import sys
+import time
+#import MySQLdb as mdb
+import pymysql as mdb
+import datetime
+from LoadCBOEoptions import insertVolData
+directory = 'ftp.datashop.livevol.com'
+userName = 'amandatomnz@gmail.com'
+password = 'eaw12345'
+
+ftp = FTP(directory)   # connect to host, default port
+
+ftp.login(user=userName, passwd=password)
+##ftp.cwd("/order_609/UnderlyingOptionsEODCalcs/") # navigate to the directory for historical data
+ftp.cwd("subscriptions/order_000006726/item_000009194/") # annual subscription
+ftp.set_pasv(True)
+listOfZipFiles = ftp.nlst()
+
+con = mdb.connect(host="localhost",user="root",
+                  passwd="Bright1", db="Vol", port = 3306)
+cur = con.cursor()
+
+def gettext(ftp, filename, outfile=None):
+    # fetch a text file
+    # use a lambda to add newlines to the lines read from the server
+    ftp.retrlines("RETR " + filename, lambda s, w=outfile.write: w(s+"\n"))
+
+def getbinary(ftp, filename, outfile=None):
+    # fetch a binary file
+    try:
+        ftp.retrbinary("RETR " + filename, outfile.write)
+    except Exception as e:
+        print("Running FTP exception ...")
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
+        print("Try agin ...")
+        ftp.retrbinary("RETR " + filename, outfile.write)
+
+scriptpath = os.path.dirname('C:\\Temp') #__file__
+fileDirectory = scriptpath + "/CBOE_History/"
+## get latest date in database
+lastDateInDbQuery = "select substring(max(quote_date), 1, 10) from optionexpiry"
+cur = con.cursor()
+cur.execute(lastDateInDbQuery)
+lastDateInDb = cur.fetchone();
+cur.close()
+print("Last Date in Db: " + lastDateInDb[0])
+
+for zipfilename in sorted(listOfZipFiles): # Loop - looking for matching files
+    print(zipfilename)
+    try:
+        datetime.datetime.strptime(zipfilename[-14:-4], "%Y-%m-%d")
+    except:
+        print("Problem datetime: " + str(zipfilename[-14:-4]))
+        continue
