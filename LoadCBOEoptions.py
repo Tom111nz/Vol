@@ -126,7 +126,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
                 ## recover the OptionExpiryID
                 cur = con.cursor()
                 cur.execute(OptionExpiryQuery)
-                OptionExpiryIDTemp = cur.fetchone();
+                OptionExpiryIDTemp = cur.fetchone()
                 OptionExpiryID = OptionExpiryIDTemp[0]
                 cur.close()
             else:
@@ -184,7 +184,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
             OptionGreeksQuery = "Select ID from OptionGreeks where OptionExpiryID = '%s' and StrikeID = '%s'" % (OptionExpiryID, StrikeID)
             cur = con.cursor()
             cur.execute(OptionGreeksQuery)
-            OptionGreeksID = cur.fetchone();
+            OptionGreeksID = cur.fetchone()
             cur.close()
             if OptionGreeksID is None:
                 try:
@@ -204,7 +204,7 @@ def insertVolData(csvFileDirectoryWithFileName, con):
             EoDQuery = "Select ID from EoD where OptionExpiryID = '%s' and StrikeID = '%s'" % (OptionExpiryID, StrikeID)
             cur = con.cursor()
             cur.execute(EoDQuery)
-            EoDID = cur.fetchone();
+            EoDID = cur.fetchone()
             cur.close()
             if EoDID is None:
                 try:
