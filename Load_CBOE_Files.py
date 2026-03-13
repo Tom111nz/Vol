@@ -13,7 +13,7 @@ def get_db_connection():
             host=os.environ["DB_HOST"],
             user=os.environ["DB_USER"],
             passwd=os.environ["DB_PASSWORD"],
-            db="Vol_test",#os.environ["DB_NAME"],
+            db=os.environ["DB_NAME"],
             port=int(os.environ.get("DB_PORT", "3306")),
             autocommit=False
         )
@@ -29,6 +29,7 @@ USERNAME = "amandatomnz_gmail_com"
 PASSWORD = "Eaws12345$"
 
 REMOTE_DIR = "subscriptions/order_000016592/item_000020515"          # change if they give you a folder like "/outgoing"
+#REMOTE_DIR = "order_000091865/item_000105087" # historical
 LOCAL_DIR = r"C:\Temp\livevol"  # change to where you want files
 
 os.makedirs(LOCAL_DIR, exist_ok=True)
