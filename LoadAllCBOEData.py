@@ -88,7 +88,7 @@ logger.info('End VIX Futures')
 ## SPX and VIX options
 print("(4) Loading SPX and VIX options")
 logger.info('Start SPX and VIX options')
-with open("C:\\Users\Tom\PycharmProjects\Vol\Load_CBOE_Files.py.py") as f:
+with open("C:\\Users\Tom\PycharmProjects\Vol\Load_CBOE_Files.py") as f:
     code = compile(f.read(), "Historical_CBOE_Download.py", 'exec')
     exec(code)   
 logger.info('End SPX and VIX options')
