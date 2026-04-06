@@ -10,11 +10,8 @@ import os
 def get_db_connection():
     try:
         return mdb.connect(
-            host=os.environ["DB_HOST"],
-            user=os.environ["DB_USER"],
-            passwd=os.environ["DB_PASSWORD"],
-            db=os.environ["DB_NAME"],
-            port=int(os.environ.get("DB_PORT", "3306")),
+            host="localhost", user="root",
+            passwd="Bright1", db="Vol_test", port=3306,
             autocommit=False
         )
     except KeyError as e:
@@ -82,7 +79,7 @@ for zipfilename in sorted(listOfZipFiles): # Loop - looking for matching files
          print("Problem datetime: " + str(zipfilename[-14:-4]))
          continue
      if datetime.datetime.strptime(zipfilename[-14:-4], "%Y-%m-%d") <= datetime.datetime.strptime(lastDateInDb[0],
-                                                                                                 "%Y-%m-%d"):
+                                                                                              "%Y-%m-%d"):
         print("Not processing :" + zipfilename[-14:-4])
         continue
 

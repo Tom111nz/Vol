@@ -17,7 +17,7 @@ import numpy as np
 
 global con
 con = mdb.connect(host="localhost",user="root",
-                  passwd="Bright1",db="Vol", port = 3306)
+                  passwd="Bright1",db="Vol_test", port = 3306)
 
 def getVixFutureExpiry(futureDateCode):
     cur = con.cursor()

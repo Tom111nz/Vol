@@ -9,7 +9,7 @@ from dateutil.parser import parse
 from InterpolateUSYield import interpolateUSYield
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="password",db="Vol", port = 3307)
+                  passwd="Bright1",db="Vol", port = 3306)
 #DeltaUsed = 0.7
 #InterestRateUsed = 0.01
 calculateVIXFromSingleExpiry_PrintResults = False
@@ -91,6 +91,7 @@ def generateVIXFuturesString(optionExpiryDatetime):
 
 ## check we are not missing an option expiry in VIXFutureOptionExpiryList()
 sqlExpiries = ('select expiration from optionexpiry '
+        ##'where expiration >= "2020-02-25 00:00:00" '
             'where quote_date = (select max(quote_date) from optionexpiry) '
             'and root = "SPX"')
 cur = con.cursor()
@@ -134,15 +135,17 @@ for sheetNum, row in enumerate(expiriesList):
     cur = con.cursor()
     cur.execute(sqlEarliestExpiry)
     earliestExpiry = cur.fetchone()
-    cur.close()
+    #earliestExpiry = min(expiries)
+    print("earliestExpiry = " + str(earliestExpiry))
+    #cur.close()
     if optionExpiryDatetime < earliestExpiry[0]: ## process from the earliest option expiry, and onwards       
         continue
-## Get days where data exists for the option expiry
+## Get days when data exists for the option expiry
     sqlQuery = ('select oe.quote_date, und.underlying_bid_1545 from OptionExpiry oe '
                 'left join underlying und on oe.id = und.optionexpiryid '
                 'where oe.root = "SPX" '
                 'and oe.expiration = '"'%s'"' '
-                'group by oe.quote_date order by oe.quote_date;' % optionExpiryString)
+                'group by oe.quote_date, und.underlying_bid_1545 order by oe.quote_date;' % optionExpiryString)
     cur = con.cursor()
     cur.execute(sqlQuery)
     quoteDatesOptionsRaw = cur.fetchall()

@@ -1,57 +1,131 @@
-## To scrape daily US Treasury yields into db
-import requests, datetime
-import bs4
+# Load US Treasury Daily Yield Curve into MySQL using XML feed
+import datetime
+import requests
 import pymysql as mdb
+import xml.etree.ElementTree as ET
 
-def controlforNA(aRow):
-    if aRow.strip() == 'N/A':
-        val =  None
-    else:
-        val = float(aRow)/100.0
-    return val
+# ----------------------------
+# DB config
+# ----------------------------
+con = mdb.connect(
+    host="localhost",
+    user="root",
+    passwd="Bright1",
+    db="Vol_test",
+    port=3306
+)
 
-con = mdb.connect(host="localhost",user="root",
-                  passwd="Bright1",db="Vol", port = 3306)
-page = requests.get("https://www.treasury.gov/resource-center/data-chart-center/interest-rates/Pages/TextView.aspx?data=yield")
+# ----------------------------
+# Helpers
+# ----------------------------
+def pct_to_decimal(x):
+    if x is None:
+        return None
+    try:
+        return float(x) / 100.0
+    except ValueError:
+        return None
 
-print('status code: ' + str(page.status_code)) # should be 200
-soup = bs4.BeautifulSoup(page.content, 'html.parser')
-
-# loop through even and odd rows
-gridCellsEven = soup.find_all('tr', class_="evenrow")
-gridCellsOdd = soup.find_all('tr', class_="oddrow")
-
-newList = list()
-for c in gridCellsEven:
-    longString = c.get_text(" ")
-    aList = longString.split(" ")
-    newList.append(aList)
-for c in gridCellsOdd:
-    longString = c.get_text(" ")
-    aList = longString.split(" ")
-    newList.append(aList)
-
-newListSorted = sorted(newList,key=lambda x: x[0]) # sort by date (first column)
-
-# Retrieve latest date from database
-sqlLatest = ('select max(quote_date) from USTreasuryYields')
+# ----------------------------
+# Get latest date in DB
+# ----------------------------
 cur = con.cursor()
-cur.execute(sqlLatest)
-latestDate = cur.fetchone()
+cur.execute("SELECT MAX(quote_date) FROM USTreasuryYields")
+latest = cur.fetchone()[0]
 cur.close()
 
-latestDateInDb = datetime.datetime.combine(latestDate[0], datetime.datetime.min.time())
-for row in newListSorted:
-    scrappedDate = datetime.datetime.strptime(row[0], '%m/%d/%y')
-    if scrappedDate > latestDateInDb: # compare datetimes and only insert larger dates
-        try:
-            print('INSERT into USTreasuryYields ' + scrappedDate.strftime("%Y-%m-%d"))
-            cur = con.cursor()
-            cur.execute('''INSERT into USTreasuryYields (quote_date, 1M, 2M, 3M, 6M, 1Y, 2Y, 3Y, 5Y, 7Y, 10Y, 20Y, 30Y)
-                              values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                              (scrappedDate.strftime("%Y-%m-%d"), controlforNA(row[1]), controlforNA(row[2]), controlforNA(row[3]), controlforNA(row[4]), controlforNA(row[5]), controlforNA(row[6]), controlforNA(row[7]), controlforNA(row[8]), controlforNA(row[9]), controlforNA(row[10]), controlforNA(row[11]), controlforNA(row[12])))
-            con.commit()
-            cur.close()
-        except (mdb.Error, mdb.Warning) as e:
-            print(e)
-            print("USTreasuryYields: Error inserting %s: ", scrappedDate.strftime("%Y-%m-%d"))
+if latest is None:
+    latest_dt = datetime.datetime(1900, 1, 1)
+else:
+    latest_dt = datetime.datetime.combine(latest, datetime.datetime.min.time())
+
+print(f"Latest date in DB: {latest_dt.date()}")
+
+# ----------------------------
+# Dynamic years
+# ----------------------------
+start_year = latest_dt.year
+end_year = datetime.datetime.today().year
+years = list(range(start_year, end_year + 1))
+
+print(f"Loading Treasury years: {years}")
+
+# ----------------------------
+# XML namespaces (from your file)
+# ----------------------------
+NS = {
+    "atom": "http://www.w3.org/2005/Atom",
+    "m": "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata",
+    "d": "http://schemas.microsoft.com/ado/2007/08/dataservices",
+}
+
+# ----------------------------
+# Fetch + parse XML
+# ----------------------------
+rows = []
+
+for year in years:
+    url = (
+        "https://home.treasury.gov/resource-center/data-chart-center/"
+        "interest-rates/pages/xml"
+        f"?data=daily_treasury_yield_curve&field_tdr_date_value={year}"
+    )
+
+    print(f"Fetching {year} XML...")
+    r = requests.get(url, timeout=60)
+    r.raise_for_status()
+
+    root = ET.fromstring(r.text)
+
+    for entry in root.findall("atom:entry", NS):
+        props = entry.find("atom:content/m:properties", NS)
+        if props is None:
+            continue
+
+        date_text = props.findtext("d:NEW_DATE", namespaces=NS)
+        if not date_text:
+            continue
+
+        quote_date = datetime.datetime.fromisoformat(date_text[:10])
+
+        if quote_date <= latest_dt:
+            continue
+
+        def val(tag):
+            return pct_to_decimal(props.findtext(f"d:{tag}", namespaces=NS))
+
+        rows.append((
+            quote_date.strftime("%Y-%m-%d"),
+            val("BC_1MONTH"),
+            val("BC_2MONTH"),
+            val("BC_3MONTH"),
+            val("BC_6MONTH"),
+            val("BC_1YEAR"),
+            val("BC_2YEAR"),
+            val("BC_3YEAR"),
+            val("BC_5YEAR"),
+            val("BC_7YEAR"),
+            val("BC_10YEAR"),
+            val("BC_20YEAR"),
+            val("BC_30YEAR"),
+        ))
+
+# ----------------------------
+# Insert into DB
+# ----------------------------
+rows.sort(key=lambda r: r[0])
+print(f"Rows to insert: {len(rows)}")
+
+insert_sql = """
+INSERT IGNORE INTO USTreasuryYields
+(`quote_date`, `1M`, `2M`, `3M`, `6M`, `1Y`, `2Y`, `3Y`, `5Y`, `7Y`, `10Y`, `20Y`, `30Y`)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
+cur = con.cursor()
+cur.executemany(insert_sql, rows)
+con.commit()
+cur.close()
+con.close()
+
+print("Treasury yield load complete.")

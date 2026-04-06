@@ -11,7 +11,7 @@ from dateutil.parser import parse
 VIXList = ['https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv']
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="Bright1",db="Vol", port = 3306)
+                  passwd="Bright1",db="Vol_test", port = 3306)
 
 for v in VIXList:
     with requests.Session() as s:

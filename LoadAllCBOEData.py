@@ -52,14 +52,14 @@ now = datetime.datetime.now()
 print("(1) Loading VIX")
 logger.info('Program started: %s' % now)
 logger.info('Start VIX')
-with open("C:\\Users\Tom\PycharmProjects\Vol\LoadVIX.py") as f:
+with open(r"C:\\Users\Tom\PycharmProjects\Vol\LoadVIX.py") as f:
     code = compile(f.read(), "LoadVIX.py", 'exec')
     exec(code)
 logger.info('End VIX')
 ## Load VIX Futures
 print("(2) Loading VIX Futures")
 logger.info('Start VIX Futures')
-with open("C:\\Users\Tom\PycharmProjects\Vol\LoadVIXFutures.py") as f:
+with open(r"C:\\Users\Tom\PycharmProjects\Vol\LoadVIXFutures.py") as f:
     code = compile(f.read(), "LoadVIXFutures.py", 'exec')
     try:
         exec(code)
@@ -76,7 +76,7 @@ logger.info('End VIX Futures')
 ## Load VIX Future implied interest rate
 #print("(3) Loading VIX Futures Implied Rate")
 #logger.info('Start VIX Futures Implied Rate')
-#with open("/Users/tomobrien/Git/Vol/LoadVIXFutureInterestRate.py") as f:
+#with open(r"/Users/tomobrien/Git/Vol/LoadVIXFutureInterestRate.py") as f:
 #    code = compile(f.read(), "LoadVIXFutureInterestRate.py", 'exec')
 #    try:
 #        exec(code)
@@ -88,23 +88,23 @@ logger.info('End VIX Futures')
 ## SPX and VIX options
 print("(4) Loading SPX and VIX options")
 logger.info('Start SPX and VIX options')
-with open("C:\\Users\Tom\PycharmProjects\Vol\Load_CBOE_Files.py") as f:
-    code = compile(f.read(), "Historical_CBOE_Download.py", 'exec')
+with open(r"C:\\Users\Tom\PycharmProjects\Vol\Load_CBOE_Files.py") as f:
+    code = compile(f.read(), "Load_CBOE_Files.py", 'exec')
     exec(code)   
 logger.info('End SPX and VIX options')
 ## Load US Treasury yields
-#print("(5) Loading US Yields")
-#logger.info('Start US Yields')
-#with open("/Users/tomobrien/Git/Vol/US_Treasury_Yields_Scrape.py") as f:
-#    code = compile(f.read(), "US_Treasury_Yields_Scrape.py", 'exec')
-#    exec(code)
-#logger.info('End US Yields')
+print("(5) Loading US Yields")
+logger.info('Start US Yields')
+with open(r"C:\\Users\Tom\PycharmProjects\Vol\US_Treasury_Yields_Scrape.py") as f:
+    code = compile(f.read(), "US_Treasury_Yields_Scrape.py", 'exec')
+    exec(code)
+logger.info('End US Yields')
 ## Calculate VIX
 print("(6) Calculate VIX")
 logger.info('Start Calculate VIX')
-with open("C:\\Users\Tom\PycharmProjects\Vol\VIXCalculated.py") as f:
-    code = compile(f.read(), "VIXCalculated.py", 'exec')
-    exec(code)   
+#with open(r"C:\\Users\Tom\PycharmProjects\Vol\VIXCalculated.py") as f:
+#    code = compile(f.read(), "VIXCalculated.py", 'exec')
+#    exec(code)
 logger.info('End Calculate VIX')
 ## check for new VIX futures
 print('check for new VIX futures')
