@@ -102,9 +102,9 @@ logger.info('End US Yields')
 ## Calculate VIX
 print("(6) Calculate VIX")
 logger.info('Start Calculate VIX')
-#with open(r"C:\\Users\Tom\PycharmProjects\Vol\VIXCalculated.py") as f:
-#    code = compile(f.read(), "VIXCalculated.py", 'exec')
-#    exec(code)
+with open(r"C:\\Users\Tom\PycharmProjects\Vol\VIXCalculated_LoadAllHistorical.py") as f:
+    code = compile(f.read(), "VIXCalculated_LoadAllHistorical.py", 'exec')
+    exec(code)
 logger.info('End Calculate VIX')
 ## check for new VIX futures
 print('check for new VIX futures')
