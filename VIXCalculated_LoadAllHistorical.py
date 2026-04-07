@@ -71,6 +71,7 @@ with con.cursor() as cur:
         """
         SELECT quote_date, OptionExpiryID
         FROM VIXCalculated
+        where optionexpiration >= (select max(quote_date) FROM optionexpiry WHERE root = 'SPX')
         """
     )
     existing_keys = {
