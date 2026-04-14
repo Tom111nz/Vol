@@ -44,7 +44,7 @@ def generate_vix_futures_string(expiry: datetime.datetime) -> str:
     code, month = MONTH_MAP[expiry.month]
     year = expiry.year - 2000
     if expiry.month == 1:
-        year -= 1 # Dec futures expiry for Jan options
+        year -= 1 # # Jan SPX expiry maps to Dec VIX future of prior year
     return f"{code} ({month} {year:02d})"
 
 
@@ -57,10 +57,10 @@ with con.cursor() as cur:
         SELECT DISTINCT expiration
         FROM optionexpiry
         WHERE root = 'SPX'
-        and expiration >= (select max(quote_date) FROM optionexpiry WHERE root = 'SPX')
+        and expiration >= (select max(quote_date) FROM vixcalculated)
         ORDER BY expiration
         """
-    )
+    ) ## use 'max(quote_date) FROM vixcalculated' in case vixcalculated is not as up to date as optionexpiry
     expiries = [row["expiration"] for row in cur.fetchall()]
 
 # ------------------------
@@ -70,10 +70,10 @@ with con.cursor() as cur:
     cur.execute(
         """
         SELECT quote_date, OptionExpiryID
-        FROM VIXCalculated
-        where optionexpiration >= (select max(quote_date) FROM optionexpiry WHERE root = 'SPX')
+        FROM vixcalculated
+        where optionexpiration >= (select max(quote_date) FROM vixcalculated)
         """
-    )
+    ) ## use 'max(quote_date) FROM vixcalculated' in case vixcalculated is not as up to date as optionexpiry
     existing_keys = {
         (row["quote_date"].date(), row["OptionExpiryID"])
         for row in cur.fetchall()
@@ -93,24 +93,35 @@ with con.cursor() as cur:
             """
             SELECT
                 oe.quote_date,
-                oe.id
-            FROM OptionExpiry oe
+                oe.id  AS SPXid,
+                oe2.id AS VIXid
+            FROM optionexpiry oe
+            LEFT JOIN optionexpiry oe2
+              ON oe2.root = 'VIX'
+              AND oe2.quote_date = oe.quote_date
+              AND oe2.expiration = (
+                 SELECT MAX(v.expiration)
+                 FROM optionexpiry v
+                 WHERE v.root = 'VIX'
+                AND v.expiration <= DATE_SUB(%s, INTERVAL 30 DAY)
+                AND ABS(DATEDIFF(%s, v.expiration)) <= 35
+                )
             WHERE oe.root = 'SPX'
-              AND oe.expiration = %s
-            GROUP BY oe.quote_date, oe.id
-            ORDER BY oe.quote_date
+            AND oe.expiration = %s
+            ORDER BY oe.quote_date;
             """,
-            (option_expiry,),
+            (option_expiry,option_expiry,option_expiry,),
         )
 
         for row in cur.fetchall():
             quote_date = row["quote_date"].date()
-            option_expiry_id = row["id"]
+            spx_option_expiry_id = row["SPXid"]
+            vix_option_expiry_id = row["VIXid"]
 
             if quote_date > expiry_date:
                 continue
 
-            key = (quote_date, option_expiry_id)
+            key = (quote_date, spx_option_expiry_id)
             if key in existing_keys:
                 continue
 
@@ -129,7 +140,8 @@ with con.cursor() as cur:
             rows_to_insert.append(
                 (
                     quote_date,
-                    option_expiry_id,
+                    spx_option_expiry_id,
+                    vix_option_expiry_id,
                     futures_contract,
                     option_expiry,
                     interest_rate,
@@ -148,12 +160,13 @@ if rows_to_insert:
             (
                 quote_date,
                 OptionExpiryId,
+                VixOptionExpiryId,
                 FuturesContract,
                 OptionExpiration,
                 InterestRateUsed,
                 VIXCalculated
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
             rows_to_insert,
         )

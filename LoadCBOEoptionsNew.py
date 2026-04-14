@@ -168,9 +168,12 @@ def insertVolData(csv_path, con, batch_size=2000, commit_every_batch=True):
                 elif rootOriginal == "SPXW":
                     expiration = expirationTemp + " 15:00:00"
                     root = "SPXW"
-                elif rootOriginal == "VIX" or underlying_symbol == "^VIX":
+                elif rootOriginal == "VIX":
                     expiration = expirationTemp + " 08:30:00"
                     root = "VIX"
+                elif rootOriginal == "VIXW":
+                    expiration = expirationTemp + " 15:00:00"
+                    root = "VIXW"
                 else:
                     expiration = expirationTemp + " 08:30:00"
                     root = "SPX"
