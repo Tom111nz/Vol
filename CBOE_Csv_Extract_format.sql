@@ -1,0 +1,24 @@
+Use vol_test;
+select oe.root, oe.quote_date, oe.rootoriginal, oe.expiration, st.strike, trim(st.option_type), 
+EoD.opn, EoD.high, EoD.low, EoD.clos, EoD.trade_volume, og.`bid_size_1545`, 
+og.`bid_1545`, og.`ask_size_1545`, og.`ask_1545`, und.`underlying_bid_1545`, 
+und.`underlying_ask_1545`, und.`implied_underlying_price_1545`, und.`active_underlying_price_1545`, 
+og.`implied_volatility_1545`, og.`delta_1545`, og.`gamma_1545`, og.`theta_1545`, og.`vega_1545`, 
+og.`rho_1545`, Eod.`bid_size_eod`, eod.`bid_eod`, eod.`ask_size_eod`, eod.`ask_eod`, 
+und.`underlying_bid_eod`, und.`underlying_ask_eod`, eod.`vwap`, eod.`open_interest`, 
+eod.`delivery_code` 
+from optionexpiry oe
+ left join optiongreeks og on og.optionexpiryID = oe.ID
+ left join Underlying und on und.optionexpiryID = oe.ID
+ left join strike st on st.ID = og.strikeid
+ left join EoD on EoD.OptionExpiryID = oe.ID and EOD.strikeiD = st.ID
+where oe.ID in 
+(
+select id from optionexpiry 
+where left(quote_date, 10) = '2020-01-02'
+##and `rootOriginal` in ('VIXW')
+)
+order by expiration asc, strike asc, option_type;
+
+## max(tradedate), min(tradedate)
+## change code to check optiongreeks before inserting
