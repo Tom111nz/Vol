@@ -16,7 +16,7 @@ DB_CONFIG = dict(
     cursorclass=pymysql.cursors.DictCursor,
 )
 
-YEARS = [2025] ##, 2026
+YEARS = [2025, 2026]
 MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
 DELTA_PCTS = [0.1, 0.5, 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
