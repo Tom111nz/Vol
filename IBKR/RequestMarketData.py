@@ -57,10 +57,10 @@ def getSpxOptions(ib: IB):
     ib.qualifyContracts(spx)
     chains = ib.reqSecDefOptParams(spx.symbol, "", spx.secType, spx.conId)
 
-    chain_spx = pick_chain(chains, "SPX")
+    #chain_spx = pick_chain(chains, "SPX")
     chain_spxw = pick_chain(chains, "SPXW")
 
-    return chain_spx, chain_spxw
+    return chain_spxw # chain_spx
 
 ## Output to CSV
 def outPath(outputDirectory: str, filename: str) -> str:
@@ -142,12 +142,6 @@ def getDictOfExpiryStrikes(ib, expiryList, chain, exchange, optionTypes):
         for expiry in expiryList:
             dict[expiry] = validStrikesForExpiry(ib, expiry, chain, exchange, optionTypes)
     return dict
-
-def getDateInFuture(daysInFuture: int):
-    us_bd = CustomBusinessDay(calendar=USFederalHolidayCalendar())
-    start = pd.Timestamp(datetime.today())
-    result = start + daysInFuture * us_bd
-    return result
 
 def getLevelXpctFromIndex(indexLevel, percentMove):
     return indexLevel * (1 + percentMove)
