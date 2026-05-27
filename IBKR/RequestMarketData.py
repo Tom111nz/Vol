@@ -1,3 +1,4 @@
+import math
 import os
 from datetime import datetime, timedelta
 
@@ -26,9 +27,9 @@ def getSpxSpot(ib: IB, getPreviousClose: bool):
     spx = createSpxIndex()
     ib.qualifyContracts(spx)
 
-    mdt = sanity_check_market_data_type(ib, spx)
-    log(f"Sanity check: ticker.marketDataType reported as {mdt}" if mdt is not None
-        else "Sanity check: could not read ticker.marketDataType")
+    #mdt = sanity_check_market_data_type(ib, spx)
+    #log(f"Sanity check: ticker.marketDataType reported as {mdt}" if mdt is not None
+    #    else "Sanity check: could not read ticker.marketDataType")
     try:
         [ticker] = ib.reqTickers(spx)
         if getPreviousClose:
@@ -37,7 +38,7 @@ def getSpxSpot(ib: IB, getPreviousClose: bool):
             spot = ticker.marketPrice()
     except Exception:
         spot = None
-    log(f"SPX spot: {spot if spot is not None else 'N/A'}")
+    log(f"SPX spot: {' Exists' if spot is not None else ' N/A'}")
     return spot
 
 ## SPX Options
@@ -100,18 +101,15 @@ def getExpiriesInWindow(chain, expiryWindowDays: int):
             keep.append(e)
     return sorted(keep)
 
-def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights=('C','P')):
-    """
-    expiry: 'YYYYMMDD'
-    chain: one element from reqSecDefOptParams result (has tradingClass, multiplier, strikes)
-    returns: sorted list of strikes that qualify for that expiry (at least one right qualifies)
-    """
-    valid = set()
+def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights=('C','P'), lowerStrike=5000, upperStrike=9000):
 
+    valid = []
     # Build a batch of candidate option contracts (C and/or P) and qualify them.
     # Note: You can reduce the universe by filtering strikes (range, step, around spot, etc.)
     contracts = []
     for strike in chain.strikes:
+        if not (lowerStrike <= strike <= upperStrike):
+            continue  # skip to next iteration. Don't process strikes outside of band because is slow
         for r in rights:
             c = Option(
                 symbol='SPX',
@@ -132,15 +130,17 @@ def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights=('C','P'))
         qualified = ib.qualifyContracts(*chunk)  # returns only the ones that are valid/qualified
 
         for qc in qualified:
-            valid.add(qc.strike)
+            #valid.add(qc.strike)
+            bid, ask = requestBidAskandGreeks(ib, qc)
+            valid.append((qc.strike, bid, ask))
 
-    return sorted(valid)
+    return valid
 
-def getDictOfExpiryStrikes(ib, expiryList, chain, exchange, optionTypes):
+def getDictOfExpiryStrikes(ib, expiryList, chain, exchange, optionTypes, lowerStrike, upperStrike):
     dict = {}
     if expiryList is not None:
         for expiry in expiryList:
-            dict[expiry] = validStrikesForExpiry(ib, expiry, chain, exchange, optionTypes)
+            dict[expiry] = validStrikesForExpiry(ib, expiry, chain, exchange, optionTypes, lowerStrike, upperStrike)
     return dict
 
 def getLevelXpctFromIndex(indexLevel, percentMove):
@@ -161,3 +161,27 @@ def buildOption(expiration, strike, optionType, chainType):
         tradingClass=chainType,  # 'SPX' or 'SPXW'
         multiplier='100'
     )
+
+
+def has_value(x):
+    return x is not None and not (isinstance(x, float) and math.isnan(x))
+
+
+def requestBidAskandGreeks(ib, option):
+    qualified = ib.qualifyContracts(option)
+    log(f"Qualified option: {qualified[0] if qualified else option}")
+    ticker = ib.reqMktData(option)
+    # Wait until we have bid/ask (or time out yourself)
+    for _ in range(50):
+        ib.sleep(0.1)
+        if has_value(ticker.bid) and has_value(ticker.ask):
+            break
+    return [ticker.bid, ticker.ask]
+    #print("Bid/Ask:", ticker.bid, ticker.ask, "Sizes:", ticker.bidSize, ticker.askSize)
+    ## If you want bid/ask derived Greeks (when available):
+    #print("BidGreeks:", ticker.bidGreeks)
+    #print("AskGreeks:", ticker.askGreeks)
+    #print("LastGreeks:", ticker.lastGreeks)
+    #print("ModelGreeks:", ticker.modelGreeks)
+    #print("ModelGreeks:ticker.marketDataType", ticker.marketDataType)
+    ib.cancelMktData(option)
