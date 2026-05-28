@@ -83,10 +83,7 @@ def parseExpiry_yyyymmdd(s: str):
         return None
 
 def getExpiriesInWindow(chain, expiryWindowDays: int):
-    """
-    Filter expirations to those within [today, today+EXPIRY_WINDOW_DAYS].
-    expiry_list elements are 'YYYYMMDD' strings as returned by IB.
-    """
+
     today = datetime.now().date()
     end = today + timedelta(days=expiryWindowDays)
 
@@ -101,7 +98,8 @@ def getExpiriesInWindow(chain, expiryWindowDays: int):
             keep.append(e)
     return sorted(keep)
 
-def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights=('C','P'), lowerStrike=5000, upperStrike=9000):
+def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights='P',
+                          lowerStrike=5000, upperStrike=9000):
 
     valid = []
     # Build a batch of candidate option contracts (C and/or P) and qualify them.
@@ -110,18 +108,17 @@ def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights=('C','P'),
     for strike in chain.strikes:
         if not (lowerStrike <= strike <= upperStrike):
             continue  # skip to next iteration. Don't process strikes outside of band because is slow
-        for r in rights:
-            c = Option(
-                symbol='SPX',
-                lastTradeDateOrContractMonth=expiry,
-                strike=float(strike),
-                right=r,
-                exchange=exchange,
-                currency='USD',
-                tradingClass=chain.tradingClass,
-                multiplier=chain.multiplier
-            )
-            contracts.append(c)
+        c = Option(
+            symbol='SPX',
+            lastTradeDateOrContractMonth=expiry,
+            strike=float(strike),
+            right=rights,
+            exchange=exchange,
+            currency='USD',
+            tradingClass=chain.tradingClass,
+            multiplier=chain.multiplier
+        )
+        contracts.append(c)
 
     # Qualify in chunks to avoid very large single messages
     CHUNK = 200
@@ -130,7 +127,6 @@ def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights=('C','P'),
         qualified = ib.qualifyContracts(*chunk)  # returns only the ones that are valid/qualified
 
         for qc in qualified:
-            #valid.add(qc.strike)
             bid, ask = requestBidAskandGreeks(ib, qc)
             valid.append((qc.strike, bid, ask))
 
@@ -168,14 +164,15 @@ def has_value(x):
 
 
 def requestBidAskandGreeks(ib, option):
-    qualified = ib.qualifyContracts(option)
-    log(f"Qualified option: {qualified[0] if qualified else option}")
+    #qualified = ib.qualifyContracts(option)
+    #log(f"Qualified option: {qualified[0] if qualified else option}")
     ticker = ib.reqMktData(option)
     # Wait until we have bid/ask (or time out yourself)
     for _ in range(50):
         ib.sleep(0.1)
         if has_value(ticker.bid) and has_value(ticker.ask):
             break
+    ib.cancelMktData(option)
     return [ticker.bid, ticker.ask]
     #print("Bid/Ask:", ticker.bid, ticker.ask, "Sizes:", ticker.bidSize, ticker.askSize)
     ## If you want bid/ask derived Greeks (when available):

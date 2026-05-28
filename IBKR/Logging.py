@@ -5,12 +5,6 @@ from pathlib import Path
 def log(msg: str):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
-import csv
-from pathlib import Path
-
-import csv
-from pathlib import Path
-
 def append_fill_row(fill, csv_file="fills.csv"):
     file_exists = Path(csv_file).exists()
     exec_id = fill.execution.execId

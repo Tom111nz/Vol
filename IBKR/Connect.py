@@ -14,7 +14,6 @@ def quiet_errors(reqId, errorCode, errorString, contract):
     print(f'Error {errorCode}: {errorString}')
 
 def connect(reqMarketDataType: int):
-    # Kill ib_insync logging output
     logging.getLogger('ib_insync').setLevel(logging.CRITICAL)
     logging.getLogger().setLevel(logging.CRITICAL)  # optional: root logger too
 

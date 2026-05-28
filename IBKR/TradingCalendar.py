@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo
+
 import pandas as pd
 from datetime import datetime
 from pandas.tseries.holiday import (
@@ -39,8 +41,8 @@ class USTradingCalendar(AbstractHolidayCalendar):
     ]
 
 
-def getMarketDateInFuture(daysInFuture: int):
+def getMarketDateInFuture(daysInFuture: int, tz: str = "America/New_York"):
     us_trading_bd = CustomBusinessDay(calendar=USTradingCalendar())
-    start = pd.Timestamp(datetime.today())
+    start = pd.Timestamp(datetime.now(ZoneInfo(tz)).date())  # normalize to date in US timezone
     result = start + daysInFuture * us_trading_bd
     return result.date()
