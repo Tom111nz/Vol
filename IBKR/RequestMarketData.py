@@ -3,9 +3,9 @@ import os
 from datetime import datetime, timedelta
 
 import pandas as pd
-from pandas.tseries.offsets import CustomBusinessDay
-from pandas.tseries.holiday import USFederalHolidayCalendar
-from ib_insync import Index, IB, Option
+from ib_insync import Index, IB
+
+from IBKR.TradingCalendar import getMarketDateInFuture
 from Logging import log
 
 
@@ -84,7 +84,7 @@ def parseExpiry_yyyymmdd(s: str):
 
 def getExpiriesInWindow(chain, expiryWindowDays: int):
 
-    today = datetime.now().date()
+    today = getMarketDateInFuture(0) ## today is for CBOE (a day behind NZ)
     end = today + timedelta(days=expiryWindowDays)
 
     expiryList = getattr(chain, "expirations", []) or []
@@ -97,6 +97,63 @@ def getExpiriesInWindow(chain, expiryWindowDays: int):
         if today <= d <= end:
             keep.append(e)
     return sorted(keep)
+
+from ib_insync import Option
+
+def validStrikesForExpiry_bidask(
+    ib, expiry, chain,
+    exchange='SMART', rights='P',
+    lowerStrike=5000, upperStrike=9000,
+    md_chunk=100
+):
+    """
+    Fast bid/ask-only:
+      1) ONE reqContractDetails call per expiry to get fully-qualified contracts
+      2) Filter strikes locally
+      3) Batch snapshot quotes with reqTickers in chunks
+    """
+
+    # Pattern contract: expiry + tradingClass/multiplier narrows results.
+    # Leaving right='' lets IB return both calls & puts; we filter afterwards.
+    pattern = Option(
+        symbol='SPX',
+        lastTradeDateOrContractMonth=expiry,
+        strike=0.0,
+        right='',
+        exchange=exchange,
+        currency='USD',
+        tradingClass=chain.tradingClass,
+        multiplier=chain.multiplier
+    )
+
+    cds = ib.reqContractDetails(pattern)  # one request, returns qualified contracts
+    contracts = []
+    for cd in cds:
+        c = cd.contract
+        if c.right != rights:
+            continue
+        if not (lowerStrike <= c.strike <= upperStrike):
+            continue
+        contracts.append(c)
+
+    valid = []
+    for i in range(0, len(contracts), md_chunk):
+        chunk = contracts[i:i + md_chunk]
+        tickers = ib.reqTickers(*chunk)  # snapshot quotes (fast) [2](https://www.reddit.com/r/algotrading/comments/ifmpem/looking_for_faster_ways_to_get_option_chains_from/)
+        for t in tickers:
+            valid.append((t.contract.strike, t.bid, t.ask))
+
+    return valid
+
+
+def getDictOfExpiryStrikes_bidask(ib, expiryList, chain, exchange, optionTypes,
+                                  lowerStrike, upperStrike):
+    out = {}
+    for expiry in (expiryList or []):
+        out[expiry] = validStrikesForExpiry_bidask(
+            ib, expiry, chain, exchange, optionTypes, lowerStrike, upperStrike
+        )
+    return out
 
 def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights='P',
                           lowerStrike=5000, upperStrike=9000):

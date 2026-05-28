@@ -11,7 +11,7 @@ except RuntimeError:
 def quiet_errors(reqId, errorCode, errorString, contract):
     if errorCode in (200, 321):  # ignore invalid contract noise
         return
-    print(f'Error {errorCode}: {errorString}')
+    log(f'Error {errorCode}: {errorString}')
 
 def connect(reqMarketDataType: int):
     logging.getLogger('ib_insync').setLevel(logging.CRITICAL)
@@ -20,7 +20,7 @@ def connect(reqMarketDataType: int):
     ib = IB()
     ib.errorEvent.clear()
     ib.errorEvent += quiet_errors
-    ib.RequestTimeout = 10
+    ib.RequestTimeout = 30
     ib.connect("127.0.0.1", 7496, clientId=11)
     ib.reqMarketDataType(reqMarketDataType)
     log(f"Requested market data type: {reqMarketDataType} (1=live,2=frozen,3=delayed,4=delayed-frozen)")

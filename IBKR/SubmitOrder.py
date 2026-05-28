@@ -66,8 +66,10 @@ def createOrder(ib, option, isSubmitOrder, isLimitOrder, buySell, totalQuantity,
     if isSubmitOrder:
         if isLimitOrder:
             trade = submitLimitOrder(ib, option, buySell, totalQuantity, price)
+            log(f"Submitted limit order: {trade}")
         else:
             trade = submitMarketOrder(ib, option, buySell, totalQuantity)
+            log(f"Submitted market order: {trade}")
         # Append a row immediately on fill (no commission yet is OK)
         trade.fillEvent += lambda trd, fill: append_fill_row(fill)
         # When commission arrives, update that row
