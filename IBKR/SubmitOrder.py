@@ -14,8 +14,9 @@ def submitMarketOrder(ib, option, buySell, totalQuantity):
 
 def submitLimitOrder(ib, option, buySell, totalQuantity, price):
     order = LimitOrder(buySell, totalQuantity, price)  # or 'SELL'
-    #trade = ib.placeOrder(option, order)
-    trade = None
+    order.tif = 'DAY' ## active only for the trading day
+    trade = ib.placeOrder(option, order)
+    #trade = None
     return trade
 
 def highest_strike_with_ask_leq(data, target_bid, targetStrike):
@@ -48,14 +49,14 @@ def identifyOptionToTrade(spx_w_ExpiryStrikes, expiryTargetBusinessDaysAhead, ex
     putStrikes = sorted({r[0] for r in spx_w_ExpiryStrikes[expiryDateXDaysAhead]})
     targetStrike = getLargestLessThenOrEqualTo(putStrikes, spxTargetLevel)
     targetAsk = get_ask(spx_w_ExpiryStrikes[expiryDateXDaysAhead], targetStrike)
-    log(f"Initial taget strike was {targetStrike} with bid of {targetAsk} ")
+    log(f"Initial taget strike was {targetStrike} with ask of {targetAsk} ")
     ## identify the highest strike with a bid less than or equal to the bid of this strike
-    targetStrike = highest_strike_with_ask_leq(spx_w_ExpiryStrikes[expiryDateXDaysAhead], targetAsk, targetStrike)
-    targetAsk = get_ask(spx_w_ExpiryStrikes[expiryDateXDaysAhead], targetStrike)
-    log(f"Final taget strike was {targetStrike} with ask of {targetAsk} ")
-    log(f"The target expiry {expiryDateXDaysAhead} is {expiryTargetBusinessDaysAhead} days ahead and the target strike that is {percentageChangeTargetForOptionStrike} away from yesterday's close {spxPreviousClose} is {targetStrike}")
+    targetStrikeUpdated = highest_strike_with_ask_leq(spx_w_ExpiryStrikes[expiryDateXDaysAhead], targetAsk, targetStrike)
+    targetAskUpdated = get_ask(spx_w_ExpiryStrikes[expiryDateXDaysAhead], targetStrikeUpdated)
+    log(f"Updated taget strike was {targetStrikeUpdated} with ask of {targetAskUpdated} ")
+    log(f"The target expiry {expiryDateXDaysAhead} is {expiryTargetBusinessDaysAhead} days ahead and the updated target strike that is {percentageChangeTargetForOptionStrike} away from yesterday's close {spxPreviousClose} is {targetStrikeUpdated}")
     ## create order paraphernalia
-    option = buildOption(expiryDateXDaysAhead, targetStrike, optionType, 'SPXW')
+    option = buildOption(expiryDateXDaysAhead, targetStrikeUpdated, optionType, 'SPXW')
     return option
 
 def createOrder(ib, option, isSubmitOrder, isLimitOrder, buySell, totalQuantity, price):
@@ -70,15 +71,10 @@ def createOrder(ib, option, isSubmitOrder, isLimitOrder, buySell, totalQuantity,
         else:
             trade = submitMarketOrder(ib, option, buySell, totalQuantity)
             log(f"Submitted market order: {trade}")
-        # Append a row immediately on fill (no commission yet is OK)
-        trade.fillEvent += lambda trd, fill: append_fill_row(fill)
-        # When commission arrives, update that row
-        trade.commissionReportEvent += lambda trd, fill, report: update_commission(
-            fill.execution.execId,
-            report.commission)
         # Wait until it is Filled / Cancelled / Inactive
         while trade.orderStatus.status not in ('Filled', 'Cancelled', 'Inactive'):
-            ib.sleep(0.2)
+            ib.sleep(0.5)
+        ib.sleep(0.5) # allow commission events to arrive
     else:
         log("isSubmitOrder is False; built and qualified contract only (no order submitted).")
 

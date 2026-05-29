@@ -1,5 +1,5 @@
 from ib_insync import IB
-from Logging import log
+from Logging import log, append_fill_row, update_commission
 import logging
 
 import asyncio
@@ -24,4 +24,16 @@ def connect(reqMarketDataType: int):
     ib.connect("127.0.0.1", 7496, clientId=11)
     ib.reqMarketDataType(reqMarketDataType)
     log(f"Requested market data type: {reqMarketDataType} (1=live,2=frozen,3=delayed,4=delayed-frozen)")
+
+    # Set this ONCE during setup, not per order
+    ib.execDetailsEvent += lambda trade, fill: (
+        log(f"Fill received: {fill.execution.execId}"),
+        append_fill_row(fill)
+    )
+
+    ib.commissionReportEvent += lambda trade, fill, report: (
+        log(f"Commission: {report.execId}"),
+        update_commission(fill.execution.execId, report.commission)
+    )
+
     return ib

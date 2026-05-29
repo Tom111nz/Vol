@@ -11,12 +11,12 @@ BUY = 'BUY'
 SELL = 'SELL'
 ## Parameters
 reqMarketDataType = 1
-expiryTargetBusinessDaysAhead = [2, 1, 0] # this is based on CBOE dates (not NZ dates), so 0 is 0DTE expiry option
-percentageChangeTargetForOptionStrike = [-0.07, -0.05, -0.05]
+expiryTargetBusinessDaysAhead = [1] # this is based on CBOE dates (not NZ dates), so 0 is 0DTE expiry option
+percentageChangeTargetForOptionStrike = [-0.07]
 ## SPX circuit breaks are at 7%, 13% and 20% (close for remainder of day) from previous day's close
-optionType = ['P', 'P', 'P']
-buySell = [BUY, BUY, BUY]
-totalQuantity = [1, 1, 1]
+optionType = ['P']
+buySell = [BUY]
+totalQuantity = [1]
 if reqMarketDataType == 1:
     isSubmitOrder = False
 else: isSubmitOrder = False
