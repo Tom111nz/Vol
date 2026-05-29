@@ -1,3 +1,6 @@
+import atexit
+import os
+import sys
 import time
 import signal
 import logging
@@ -5,6 +8,43 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
+from Constant import BUY
+from IBKR import LoadOptions
+
+# Only allow one instance to run at a time
+import errno
+import atexit
+
+LOCK_FILE = "scheduler.lock"
+
+if os.path.exists(LOCK_FILE):
+    try:
+        with open(LOCK_FILE, "r") as f:
+            pid = int(f.read())
+
+        os.kill(pid, 0)
+
+        print("Already running. Exiting.")
+        sys.exit(1)
+
+    except OSError as e:
+        if e.errno == errno.ESRCH:
+            print("Stale lock detected. Removing.")
+            os.remove(LOCK_FILE)
+        else:
+            print("Cannot verify existing process. Exiting for safety.")
+            sys.exit(1)
+
+# ✅ Create the lock file
+with open(LOCK_FILE, "w") as f:
+    f.write(str(os.getpid()))
+
+# ✅ Ensure lock is removed on exit
+def cleanup_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+
+atexit.register(cleanup_lock)
 
 # ------------------------
 # TIMEZONES
@@ -48,9 +88,9 @@ class DailyTriggerET:
 
 # Example triggers (add as many as you like)
 TRIGGERS = [
-    DailyTriggerET("market_open_tasks", dtime(9, 30), timedelta(minutes=3)),
-    DailyTriggerET("midday_check",      dtime(12, 0), timedelta(minutes=2)),
-    DailyTriggerET("pre_close_tasks",   dtime(15, 55), timedelta(minutes=3)),
+    #DailyTriggerET("market_open_tasks", dtime(9, 30), timedelta(minutes=3)),
+    #DailyTriggerET("midday_check",      dtime(12, 0), timedelta(minutes=2)),
+    DailyTriggerET("pre_close_tasks",   dtime(15, 45), timedelta(minutes=3)),
 ]
 
 # Track last-run per trigger by ET date
@@ -82,7 +122,7 @@ def now_et() -> datetime:
     return datetime.now(ET)
 
 def is_weekday_et(dt: datetime) -> bool:
-    return dt.weekday() < 5
+    return dt.weekday() < 1 # 0 is a Monday
 
 def trigger_window(dt: datetime, trig: DailyTriggerET) -> tuple[datetime, datetime]:
     """
@@ -116,6 +156,22 @@ def run_trigger(trig: DailyTriggerET):
     logger.info(f"[{trig.name}] Starting job...")
     try:
         # ---- PUT YOUR REAL WORK HERE ----
+        reqMarketDataType = 1
+        expiryTargetBusinessDaysAhead = [1]  # this is based on CBOE dates (not NZ dates), so 0 is 0DTE expiry option
+        percentageChangeTargetForOptionStrike = [-0.07]
+        ## SPX circuit breaks are at 7%, 13% and 20% (close for remainder of day) from previous day's close
+        optionType = ['P']
+        buySell = [BUY]
+        totalQuantity = [1]
+        if reqMarketDataType != 1:
+            isSubmitOrder = False
+        else:
+            isSubmitOrder = True
+        isLimitOrder = True
+        LoadOptions.trade(
+            reqMarketDataType, expiryTargetBusinessDaysAhead, percentageChangeTargetForOptionStrike,
+            optionType, buySell, totalQuantity, isSubmitOrder, isLimitOrder
+        )
         # e.g. connect IBKR, load chain, request bid/ask, write results, etc.
         time.sleep(1)
 
