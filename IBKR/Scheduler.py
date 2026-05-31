@@ -1,19 +1,20 @@
 import atexit
-import os
-import sys
-import time
-import signal
-import logging
-import threading
-from dataclasses import dataclass
-from datetime import datetime, timedelta, time as dtime
-from zoneinfo import ZoneInfo
-from Constant import BUY
-from IBKR import LoadOptions
-
 # Only allow one instance to run at a time
 import errno
-import atexit
+import logging
+import os
+import signal
+import sys
+import threading
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, time as dtime
+from zoneinfo import ZoneInfo
+
+from Constant import BUY, PRE_CLOSE_TASKS
+from IBKR import LoadOptions
+from IBKR.SubmitOrder import runPreCloseTasks
+from IBKR.TradingCalendar import isBusinessDay
 
 LOCK_FILE = "scheduler.lock"
 
@@ -85,12 +86,13 @@ class DailyTriggerET:
     name: str
     at: dtime                      # ET time-of-day
     window: timedelta = timedelta(minutes=2)
+    weekdays: frozenset[int] = field(default_factory=lambda: frozenset({0, 1, 2, 3, 4}))
 
 # Example triggers (add as many as you like)
 TRIGGERS = [
     #DailyTriggerET("market_open_tasks", dtime(9, 30), timedelta(minutes=3)),
     #DailyTriggerET("midday_check",      dtime(12, 0), timedelta(minutes=2)),
-    DailyTriggerET("pre_close_tasks",   dtime(15, 45), timedelta(minutes=3)),
+    DailyTriggerET(PRE_CLOSE_TASKS,   dtime(15, 45), timedelta(minutes=3), frozenset({0})), # 0 = Monday
 ]
 
 # Track last-run per trigger by ET date
@@ -121,9 +123,6 @@ def install_signal_handlers():
 def now_et() -> datetime:
     return datetime.now(ET)
 
-def is_weekday_et(dt: datetime) -> bool:
-    return dt.weekday() < 1 # 0 is a Monday
-
 def trigger_window(dt: datetime, trig: DailyTriggerET) -> tuple[datetime, datetime]:
     """
     Compute the window [start, end) in ET for today's date.
@@ -133,14 +132,17 @@ def trigger_window(dt: datetime, trig: DailyTriggerET) -> tuple[datetime, dateti
     return start, end
 
 def should_fire(dt: datetime, trig: DailyTriggerET) -> bool:
-    """
-    True if within trigger window and not run yet today (ET date).
-    """
-    start, end = trigger_window(dt, trig)
-    if not (start <= dt < end):
+    if dt.weekday() in trig.weekdays: ## if this trigger runs on this day
+        """
+        True if within trigger window and not run yet today (ET date).
+        """
+        start, end = trigger_window(dt, trig)
+        if not (start <= dt < end):
+            return False
+        last_date = last_run_by_trigger.get(trig.name)
+        return last_date != dt.date()
+    else:
         return False
-    last_date = last_run_by_trigger.get(trig.name)
-    return last_date != dt.date()
 
 def mark_fired(dt: datetime, trig: DailyTriggerET):
     last_run_by_trigger[trig.name] = dt.date()
@@ -157,21 +159,8 @@ def run_trigger(trig: DailyTriggerET):
     try:
         # ---- PUT YOUR REAL WORK HERE ----
         reqMarketDataType = 1
-        expiryTargetBusinessDaysAhead = [1]  # this is based on CBOE dates (not NZ dates), so 0 is 0DTE expiry option
-        percentageChangeTargetForOptionStrike = [-0.07]
-        ## SPX circuit breaks are at 7%, 13% and 20% (close for remainder of day) from previous day's close
-        optionType = ['P']
-        buySell = [BUY]
-        totalQuantity = [1]
-        if reqMarketDataType != 1:
-            isSubmitOrder = False
-        else:
-            isSubmitOrder = True
-        isLimitOrder = True
-        LoadOptions.trade(
-            reqMarketDataType, expiryTargetBusinessDaysAhead, percentageChangeTargetForOptionStrike,
-            optionType, buySell, totalQuantity, isSubmitOrder, isLimitOrder
-        )
+        if trig.name == PRE_CLOSE_TASKS:
+            runPreCloseTasks(reqMarketDataType)
         # e.g. connect IBKR, load chain, request bid/ask, write results, etc.
         time.sleep(1)
 
@@ -196,12 +185,12 @@ def scheduler_loop(poll_seconds: float = 1.0, heartbeat_seconds: int = 60):
             logger.info(f"Heartbeat: ET now {dt.isoformat(timespec='seconds')}")
             last_heartbeat = time.time()
 
-        # Skip weekends (ET). If you want Sunday night GTH etc, adjust logic.
-        if is_weekday_et(dt):
+        # Skip weekends (ET), run on good business days only
+        if isBusinessDay(dt):
             for trig in TRIGGERS:
                 if should_fire(dt, trig):
                     logger.info(f"Trigger matched: {trig.name} at ET {dt.isoformat(timespec='seconds')}")
-                    run_trigger(trig)
+                    run_trigger(trig) # submit  orders
                     mark_fired(dt, trig)
 
                     # Small sleep to avoid re-triggering in the same second/window

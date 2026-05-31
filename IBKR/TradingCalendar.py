@@ -18,7 +18,7 @@ class USTradingCalendar(AbstractHolidayCalendar):
         # Martin Luther King Jr. Day
         USMartinLutherKingJr,
 
-        # Presidents Day
+        # Presidents' Day
         USPresidentsDay,
 
         # Good Friday (VERY important: market closed, not a federal holiday)
@@ -46,3 +46,18 @@ def getMarketDateInFuture(daysInFuture: int, tz: str = "America/New_York"):
     start = pd.Timestamp(datetime.now(ZoneInfo(tz)).date())  # normalize to date in US timezone
     result = start + daysInFuture * us_trading_bd
     return result.date()
+
+
+def isBusinessDay(date_to_check) -> bool:
+    us_trading_bd = CustomBusinessDay(calendar=USTradingCalendar())
+    ts = pd.Timestamp(date_to_check)
+    return ts == ts + 0 * us_trading_bd
+
+
+def next_business_day(date_input):
+    us_trading_bd = CustomBusinessDay(calendar=USTradingCalendar())
+    # Normalize to pandas Timestamp (same pattern as your existing function)
+    ts = pd.Timestamp(date_input)
+    # Move forward by 1 trading day
+    next_day = ts + us_trading_bd
+    return next_day.date()

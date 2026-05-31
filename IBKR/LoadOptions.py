@@ -1,6 +1,6 @@
 from IBKR.Connect import connect
 from IBKR.Logging import log
-from IBKR.RequestMarketData import getSpxSpot, getSpxOptions, getExpiriesInWindow, getDictOfExpiryStrikes, \
+from IBKR.RequestMarketData import getSpxSpot, getSpxOptions, getExpiriesInWindow, \
     requestBidAskandGreeks, createSpxIndex, getDictOfExpiryStrikes_bidask
 from IBKR.SubmitOrder import identifyOptionToTrade, createOrder
 from IBKR.TradingCalendar import getMarketDateInFuture

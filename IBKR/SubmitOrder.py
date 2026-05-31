@@ -1,15 +1,18 @@
 from datetime import datetime
 
 from ib_insync import MarketOrder, LimitOrder
-from IBKR.Logging import append_fill_row, update_commission, log
+
+from IBKR import LoadOptions
+from IBKR.Constant import BUY, P
+from IBKR.Logging import log
 from IBKR.RequestMarketData import getLevelXpctFromIndex, getLargestLessThenOrEqualTo, buildOption
 from IBKR.TradingCalendar import getMarketDateInFuture
 
 
 def submitMarketOrder(ib, option, buySell, totalQuantity):
     order = MarketOrder(buySell, totalQuantity)  # or 'SELL'
-    #trade = ib.placeOrder(option, order)
-    trade = None
+    trade = ib.placeOrder(option, order)
+    #trade = None
     return trade
 
 def submitLimitOrder(ib, option, buySell, totalQuantity, price):
@@ -83,3 +86,22 @@ def createOrder(ib, option, isSubmitOrder, isLimitOrder, buySell, totalQuantity,
     else:
         log("Final: no trade (isSubmitOrder was False).")
 
+def getIsSubmitOrder(reqMarketDataType):
+    if reqMarketDataType != 1:
+        return False
+    else:
+        return True
+
+def runPreCloseTasks(reqMarketDataType):
+    expiryTargetBusinessDaysAhead = [1]  # this is based on CBOE dates (not NZ dates), so 0 is 0DTE expiry option
+    percentageChangeTargetForOptionStrike = [-0.07] # SPX circuit breaks are at 7%, 13% and 20% (close for remainder of day) from previous day's close
+    optionType = [P]
+    buySell = [BUY]
+    totalQuantity = [1]
+    log(f"Run pre-close tasks: 1")
+    for index, ot in enumerate(optionType):
+        isSubmitOrder = getIsSubmitOrder(reqMarketDataType)
+        isLimitOrder = True
+        LoadOptions.trade(
+            reqMarketDataType, expiryTargetBusinessDaysAhead[index], percentageChangeTargetForOptionStrike[index],
+            optionType[index], buySell[index], totalQuantity[index], isSubmitOrder, isLimitOrder)
