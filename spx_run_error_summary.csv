@@ -1,0 +1,6 @@
+errorCode,count,sampleReqId,sampleErrorString,sampleContract
+200,2224,7,No security definition has been found for the request,"Option(symbol='SPX', lastTradeDateOrContractMonth='20260518', strike=1400.0, right='P', exchange='SMART', tradingClass='SPXW')"
+2104,6,-1,Market data farm connection is OK:cashfarm,
+2106,3,-1,HMDS data farm connection is OK:euhmds,
+2158,1,-1,Sec-def data farm connection is OK:secdefnj,
+10090,1371,407,Part of requested market data is not subscribed. Subscription-independent ticks are still active.SPX S&P 500 Stock Index/TOP/ALL,"Option(conId=872180719, symbol='SPX', lastTradeDateOrContractMonth='20260518', strike=2800.0, right='P', multiplier='100', exchange='SMART', currency='USD', localSymbol='SPXW  260518P02800000', tradingClass='SPXW')"

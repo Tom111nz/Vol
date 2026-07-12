@@ -1,0 +1,3 @@
+chain,exchange,underlyingConId,tradingClass,multiplier,numExpirations,numStrikes,firstExpiry,lastExpiry,minStrike,maxStrike
+SPX,SMART,416904,SPX,100,19,650,20260617,20311218,200.0,20000.0
+SPXW,SMART,416904,SPXW,100,41,719,20260518,20270331,1400.0,12400.0
