@@ -19,7 +19,7 @@ def trade(reqMarketDataType, expiryTargetBusinessDaysAhead, percentageChangeTarg
     spxPreviousClose = getSpxSpot(ib, True)
     log(f"SPX Index current: {spxSpot}")
     log(f"SPX Index yesterday's close: {spxPreviousClose}")
-    log(f"Get SPX and SPXW expiries in window of days: {expiryWindowIndays}")
+    log(f"Get SPXW expiries in window of days: {expiryWindowIndays}")
     chain_spxw = getSpxOptions(ib)
     #spxExpiriesInWindow = getExpiriesInWindow(chain_spx, expiryWindowIndays)
     spx_w_ExpiriesInWindow = getExpiriesInWindow(chain_spxw, expiryWindowIndays)
@@ -37,7 +37,7 @@ def trade(reqMarketDataType, expiryTargetBusinessDaysAhead, percentageChangeTarg
         option = identifyOptionToTrade(spx_w_ExpiryStrikes, expiryTargetBusinessDaysAhead[index],
                                        expiryWindowIndays, spxPreviousClose,
                                        percentageChangeTargetForOptionStrike[index], optionType[index])
-        bid, ask = requestBidAskandGreeks(ib, option)
+        bid, ask, delta, gamma, vega, rho, impliedVol, optPrice, undPrice, ttm, expiryDateTime  = requestBidAskandGreeks(ib, option)
         createOrder(ib, option, isSubmitOrder, isLimitOrder, buySell[index], totalQuantity[index], ask if buySell[index] == BUY else bid)
     ib.cancelMktData(createSpxIndex())
 

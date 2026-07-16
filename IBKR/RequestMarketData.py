@@ -184,7 +184,7 @@ def validStrikesForExpiry(ib, expiry, chain, exchange='SMART', rights='P',
         qualified = ib.qualifyContracts(*chunk)  # returns only the ones that are valid/qualified
 
         for qc in qualified:
-            bid, ask = requestBidAskandGreeks(ib, qc)
+            bid, ask, delta, gamma, vega, rho, impliedVol, optPrice, undPrice, ttm, expiryDateTime = requestBidAskandGreeks(ib, qc)
             valid.append((qc.strike, bid, ask))
 
     return valid
@@ -220,6 +220,22 @@ def has_value(x):
     return x is not None and not (isinstance(x, float) and math.isnan(x))
 
 
+def years_to_expiry(option):
+    expiry = datetime.strptime(
+        option.lastTradeDateOrContractMonth,
+        "%Y%m%d"
+    ).replace(hour=16, minute=0, second=0) ## expiry is a date, we add the expiry time of 4pm
+
+    now = datetime.now()
+
+    return max(
+        (expiry - now).total_seconds() /
+        (365.25 * 24 * 3600),
+        0
+    ), expiry
+
+
+
 def requestBidAskandGreeks(ib, option):
     #qualified = ib.qualifyContracts(option)
     #log(f"Qualified option: {qualified[0] if qualified else option}")
@@ -227,15 +243,19 @@ def requestBidAskandGreeks(ib, option):
     # Wait until we have bid/ask (or time out yourself)
     for _ in range(50):
         ib.sleep(0.1)
-        if has_value(ticker.bid) and has_value(ticker.ask):
+        if has_value(ticker.bid) and has_value(ticker.ask and ticker.modelGreeks is not None):
             break
+    ttm, expiryDateTime = years_to_expiry(option)
+    result = [ticker.bid, ticker.ask, ticker.modelGreeks.delta, ticker.modelGreeks.gamma,
+              ticker.modelGreeks.vega, ticker.modelGreeks.theta, ticker.modelGreeks.rho, ticker.modelGreeks.impliedVol,
+              ticker.modelGreeks.optPrice, ticker.modelGreeks.undPrice, ttm, expiryDateTime]
     ib.cancelMktData(option)
-    return [ticker.bid, ticker.ask]
+    return result
     #print("Bid/Ask:", ticker.bid, ticker.ask, "Sizes:", ticker.bidSize, ticker.askSize)
     ## If you want bid/ask derived Greeks (when available):
     #print("BidGreeks:", ticker.bidGreeks)
-    #print("AskGreeks:", ticker.askGreeks)
+    #print("AskGreeks:", ticker.askGreeks) ## use this: buy greeks
     #print("LastGreeks:", ticker.lastGreeks)
-    #print("ModelGreeks:", ticker.modelGreeks)
+    #print("ModelGreeks:", ticker.modelGreeks) ## more stable
     #print("ModelGreeks:ticker.marketDataType", ticker.marketDataType)
     ib.cancelMktData(option)

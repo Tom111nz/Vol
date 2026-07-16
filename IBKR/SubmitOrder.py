@@ -3,7 +3,7 @@ from datetime import datetime
 from ib_insync import MarketOrder, LimitOrder
 
 from IBKR import LoadOptions
-from IBKR.Constant import BUY, P
+from IBKR.Constant import BUY, P, PRE_CLOSE_TASKS
 from IBKR.Logging import log
 from IBKR.RequestMarketData import getLevelXpctFromIndex, getLargestLessThenOrEqualTo, buildOption
 from IBKR.TradingCalendar import getMarketDateInFuture
@@ -98,7 +98,7 @@ def runPreCloseTasks(reqMarketDataType):
     optionType = [P]
     buySell = [BUY]
     totalQuantity = [1]
-    log(f"Run pre-close tasks: 1")
+    log(f"Run " + PRE_CLOSE_TASKS + ": 1")
     for index, ot in enumerate(optionType):
         isSubmitOrder = getIsSubmitOrder(reqMarketDataType)
         isLimitOrder = True
