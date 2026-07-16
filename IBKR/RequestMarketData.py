@@ -1,12 +1,12 @@
 import math
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 import pandas as pd
 from ib_insync import Index, IB
 
 from IBKR.TradingCalendar import getMarketDateInFuture
-from Logging import log
+from IBKR.Logging import log
 
 
 def sanity_check_market_data_type(ib: IB, spx: Index):
@@ -221,10 +221,18 @@ def has_value(x):
 
 
 def years_to_expiry(option):
-    expiry = datetime.strptime(
-        option.lastTradeDateOrContractMonth,
-        "%Y%m%d"
-    ).replace(hour=16, minute=0, second=0) ## expiry is a date, we add the expiry time of 4pm
+    expiry_value = option.lastTradeDateOrContractMonth
+
+    if isinstance(expiry_value, str):
+        expiry = datetime.strptime(expiry_value, "%Y%m%d")
+    elif isinstance(expiry_value, date):
+        expiry = datetime.combine(expiry_value, datetime.min.time())
+    else:
+        raise TypeError(
+            f"Unexpected type: {type(expiry_value)}"
+        )
+
+    expiry = expiry.replace(hour=16, minute=0, second=0) ## closing time is 4pm (only a date is return, not the closing time)
 
     now = datetime.now()
 

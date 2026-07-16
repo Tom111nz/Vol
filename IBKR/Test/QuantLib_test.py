@@ -57,7 +57,7 @@ strike = 7000
 riskFreeRate = 0.04
 ## request some IBKR greeks compare them to QuantLib
 ## IBKR
-reqMarketDataType = 1
+reqMarketDataType = 2 # (1=live,2=frozen,3=delayed,4=delayed-frozen)
 ib = connect(reqMarketDataType)
 spxSpot = getSpxSpot(ib, False)
 #chain_spxw = getSpxOptions(ib)
@@ -69,7 +69,7 @@ put_bid, put_ask, put_delta, put_gamma, put_vega, put_rho, put_impliedVol, put_o
 optionCall = buildOption(dateXDaysAhead, strike, P if optionType == C else C, SPXW)
 call_bid, call_ask, call_delta, call_gamma, call_vega, call_rho, call_impliedVol, call_optPrice, call_undPrice, call_ttm, call_expiryDateTime  = requestBidAskandGreeks(ib, optionCall)
 forward = forward_from_put_call_parity(call_bid, put_bid, strike, riskFreeRate, put_ttm)
-## Quantlib
+## quantlib
 trade = Black76Inputs(
     forward=forward,
     strike=strike,
