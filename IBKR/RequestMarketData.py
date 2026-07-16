@@ -1,6 +1,7 @@
 import math
 import os
 from datetime import datetime, timedelta, date
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 from ib_insync import Index, IB
@@ -206,7 +207,7 @@ def getLargestLessThenOrEqualTo(candidates: list, target):
 def buildOption(expiration, strike, optionType, chainType):
     return Option(
         symbol='SPX',
-        lastTradeDateOrContractMonth=expiration,  # YYYYMMDD
+        lastTradeDateOrContractMonth=expiration.strftime('%Y%m%d'),  # YYYYMMDD
         strike=strike,
         right=optionType,  # 'C' or 'P'
         exchange='SMART',  # or 'CBOE'
@@ -232,9 +233,9 @@ def years_to_expiry(option):
             f"Unexpected type: {type(expiry_value)}"
         )
 
-    expiry = expiry.replace(hour=16, minute=0, second=0) ## closing time is 4pm (only a date is return, not the closing time)
+    expiry = expiry.replace(hour=16, minute=0, second=0, tzinfo=ZoneInfo("America/Chicago"))  ## closing time is 4pm (only a date is return, not the closing time)
 
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("America/Chicago"))
 
     return max(
         (expiry - now).total_seconds() /
@@ -245,17 +246,23 @@ def years_to_expiry(option):
 
 
 def requestBidAskandGreeks(ib, option):
-    #qualified = ib.qualifyContracts(option)
+    qualified = ib.qualifyContracts(option)
     #log(f"Qualified option: {qualified[0] if qualified else option}")
     ticker = ib.reqMktData(option)
     # Wait until we have bid/ask (or time out yourself)
     for _ in range(50):
         ib.sleep(0.1)
-        if has_value(ticker.bid) and has_value(ticker.ask and ticker.modelGreeks is not None):
+        if has_value(ticker.bid) and has_value(ticker.ask) and ticker.modelGreeks is not None:
             break
     ttm, expiryDateTime = years_to_expiry(option)
+    print(option)
+    print(qualified)
+    print(dir(ticker.askGreeks))
+    if not qualified:
+        raise RuntimeError(f"Contract could not be qualified: {option}")
+
     result = [ticker.bid, ticker.ask, ticker.modelGreeks.delta, ticker.modelGreeks.gamma,
-              ticker.modelGreeks.vega, ticker.modelGreeks.theta, ticker.modelGreeks.rho, ticker.modelGreeks.impliedVol,
+              ticker.modelGreeks.vega, ticker.modelGreeks.theta, ticker.modelGreeks.impliedVol,
               ticker.modelGreeks.optPrice, ticker.modelGreeks.undPrice, ttm, expiryDateTime]
     ib.cancelMktData(option)
     return result
