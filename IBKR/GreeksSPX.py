@@ -1,6 +1,8 @@
 # GreeksSPX.py
+from typing import Any
 
 import numpy as np
+from numpy import dtype, ndarray
 
 from scipy.stats import norm
 from scipy.optimize import brentq
@@ -145,14 +147,14 @@ def d2(
 # ============================================================
 
 def price(
-    spot,
-    strike,
-    time_to_expiry,
-    volatility,
-    risk_free_rate,
-    dividend_yield,
-    option_type,
-):
+        spot: object,
+        strike: object,
+        time_to_expiry: object,
+        volatility: object,
+        risk_free_rate: object,
+        dividend_yield: object,
+        option_type: object,
+) -> ndarray[tuple[Any, ...], dtype[Any]] | Any:
 
     option_type = _validate_option_type(
         option_type
