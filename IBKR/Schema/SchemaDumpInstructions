@@ -1,0 +1,2 @@
+In pycharm terminal navigate to the IBKR folder and type:
+mysqldump --no-data -u root  -p vol_test > schema.sql
