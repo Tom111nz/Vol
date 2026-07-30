@@ -415,7 +415,7 @@ class VixCallStrategy:
                 remaining_contracts = 0
 
             unrealized_value = (
-                bid_price
+                (bid_price - entry_price)
                 * remaining_contracts
                 * self.params.multiplier
             )
@@ -481,8 +481,8 @@ class VixCallStrategy:
                     "spx_position":
                         spx_position_current,
 
-                    "spx_plus_realized_pnl":
-                        spx_position_current + realized_pnl,
+                    "spx_plus_equity":
+                        spx_position_current + equity,
 
                 }
             )
@@ -600,8 +600,8 @@ if __name__ == "__main__":
         )
 
         results = strategy.run(
-            start_date="2008-01-01",
-            end_date="2008-12-31",
+            start_date="2024-01-01",
+            end_date="2024-12-31",
         )
 
         print(results.head())
@@ -627,18 +627,31 @@ if __name__ == "__main__":
                     "contracts": params.contracts,
                     "first_spx_position": first_row["spx_position"],
                     "last_spx_position": last_row["spx_position"],
-                    "first_spx_plus_realized_pnl":
-                        first_row["spx_plus_realized_pnl"],
-                    "last_spx_plus_realized_pnl":
-                        last_row["spx_plus_realized_pnl"],
+                    "first_spx_plus_equity":
+                        first_row["spx_plus_equity"],
+                    "last_spx_plus_equity":
+                        last_row["spx_plus_equity"],
                     "SPX return": last_row["spx_position"] / first_row["spx_position"] - 1,
-                    "Strategy return": last_row["spx_plus_realized_pnl"] / first_row["spx_plus_realized_pnl"] - 1,
-                    "Strategy_gain_dollar": last_row["spx_plus_realized_pnl"] - last_row["spx_position"],
-                    "Strategy_gain_percentage_portfolio": (last_row["spx_plus_realized_pnl"] - last_row["spx_position"]) / first_row["spx_plus_realized_pnl"],
+                    "Strategy return": last_row["spx_plus_equity"] / first_row["spx_plus_equity"] - 1,
+                    "Strategy_gain_dollar": last_row["spx_plus_equity"] - last_row["spx_position"],
+                    "Strategy_gain_percentage_portfolio": (last_row["spx_plus_equity"] - last_row["spx_position"]) / first_row["spx_plus_equity"],
                 }
             )
 
         summary_df = pd.DataFrame(summary_rows)
+
+        # Sort by expiry so cumulative returns are in chronological order
+        summary_df = summary_df.sort_values("expiration")
+
+        summary_df["SPX_return_cumulative"] = (
+            (1 + summary_df["SPX return"])
+            .cumprod()
+        )
+
+        summary_df["Strategy_return_cumulative"] = (
+            (1 + summary_df["Strategy return"])
+            .cumprod()
+        )
 
         with pd.ExcelWriter(
                 excel_file,
