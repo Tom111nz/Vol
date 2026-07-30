@@ -35,6 +35,9 @@ class StrategyParameters:
 
     first_target_multiple: float = 50.0
     second_target_multiple: float = 100.0
+    third_target_multiple: float = 150.0
+
+    spx_inital_multiple: float = 50.0
 
     first_target_fraction: float = 0.50
     def __post_init__(self):
@@ -87,6 +90,12 @@ class OptionGreeks(Base):
     bid_1545 = Column(Float)
     ask_1545 = Column(Float)
 
+class SpxDaily(Base):
+    __tablename__ = "spxdaily"
+
+    TradeDate = Column(DateTime, primary_key=True)
+
+    ClosePrice = Column(Float)
 
 # ============================================================
 # STRATEGY
@@ -166,6 +175,9 @@ class VixCallStrategy:
                 OptionExpiry.root.in_(
                     ["VIX", "VIXW"]
                 ),
+                OptionExpiry.rootOriginal.in_(
+                    ["VIX", "VIXW"]
+                ),
 
                 OptionExpiry.expiration >=
                 target_expiry,
@@ -191,6 +203,8 @@ class VixCallStrategy:
                 expiration,
                 strike_value,
                 option_type,
+                root_original,
+                root,
         ):
         stmt = (
             select(
@@ -216,6 +230,10 @@ class VixCallStrategy:
 
                 func.date(OptionExpiry.quote_date)
                 >= entry_date,
+
+                OptionExpiry.rootOriginal == root_original,
+
+                OptionExpiry.root == root,
             )
             .order_by(
                 OptionExpiry.quote_date
@@ -238,6 +256,25 @@ class VixCallStrategy:
 
         entry_price = greeks.ask_1545
 
+        spx_history = self.get_spx_history(
+            entry_date,
+            option_expiry.expiration,
+        )
+
+        spx_dict = {}
+
+        for d, close in spx_history:
+            spx_dict[d] = close
+
+        initial_spx = spx_dict.get(entry_date)
+
+        spx_position_value = (
+                entry_price
+                * self.params.contracts
+                * self.params.multiplier
+                * self.params.spx_inital_multiple
+        )
+
         target1_price = (
             entry_price
             * self.params.first_target_multiple
@@ -246,6 +283,11 @@ class VixCallStrategy:
         target2_price = (
             entry_price
             * self.params.second_target_multiple
+        )
+
+        target3_price = (
+            entry_price
+            * self.params.third_target_multiple
         )
 
         original_contracts = float(
@@ -258,15 +300,19 @@ class VixCallStrategy:
 
         target1_hit = False
         target2_hit = False
+        target3_hit = False
 
-        first_tranche = original_contracts / 3.0
-        second_tranche = original_contracts / 3.0
+        first_tranche = original_contracts / 4.0
+        second_tranche = original_contracts / 4.0
+        third_tranche = original_contracts / 4.0
 
         history = self.get_daily_history(
             entry_date,
             option_expiry.expiration,
             strike.strike,
-            strike.option_type,)
+            strike.option_type,
+            option_expiry.rootOriginal,
+            option_expiry.root,)
 
         rows = []
 
@@ -274,6 +320,19 @@ class VixCallStrategy:
 
             bid_price = bid_price or 0.0
 
+            spx_close = spx_dict.get(
+                quote_date.date()
+            )
+
+            if spx_close is not None and initial_spx is not None:
+                spx_return = (
+                        spx_close / initial_spx
+                )
+
+                spx_position_current = (
+                        spx_position_value
+                        * spx_return
+                )
             # -----------------------------
             # First target
             # -----------------------------
@@ -315,6 +374,27 @@ class VixCallStrategy:
                 remaining_contracts -= contracts_to_sell
 
                 target2_hit = True
+
+            # -----------------------------
+            # Third target
+            # -----------------------------
+
+            if (
+                    not target3_hit
+                    and bid_price >= target3_price
+            ):
+                contracts_to_sell = third_tranche
+
+                realized_pnl += (
+                                        bid_price - entry_price
+                                ) * (
+                                        contracts_to_sell
+                                        * self.params.multiplier
+                                )
+
+                remaining_contracts -= contracts_to_sell
+
+                target3_hit = True
 
             # -----------------------------
             # Expiry Exit
@@ -368,11 +448,17 @@ class VixCallStrategy:
                     "target2":
                         target2_price,
 
+                    "target3":
+                        target3_price,
+
                     "target1_hit":
                         target1_hit,
 
                     "target2_hit":
                         target2_hit,
+
+                    "target3_hit":
+                        target3_hit,
 
                     "remaining_contracts":
                         remaining_contracts,
@@ -385,10 +471,47 @@ class VixCallStrategy:
 
                     "equity":
                         equity,
+
+                    "spx_close":
+                        spx_close,
+
+                    "initial_spx":
+                        initial_spx,
+
+                    "spx_position":
+                        spx_position_current,
+
+                    "spx_plus_realized_pnl":
+                        spx_position_current + realized_pnl,
+
                 }
             )
 
         return pd.DataFrame(rows)
+
+    def get_spx_history(
+            self,
+            entry_date,
+            expiration,
+    ):
+        stmt = (
+            select(
+                SpxDaily.TradeDate,
+                SpxDaily.ClosePrice
+            )
+            .where(
+                func.date(SpxDaily.TradeDate)
+                >= entry_date,
+
+                func.date(SpxDaily.TradeDate)
+                <= expiration.date()
+            )
+            .order_by(
+                SpxDaily.TradeDate
+            )
+        )
+
+        return self.session.execute(stmt).all()
 
     # --------------------------------------------------------
 
@@ -414,6 +537,15 @@ class VixCallStrategy:
                 continue
 
             option_expiry, greeks, strike = trade
+
+            print(
+                f"Processing Trade | "
+                f"Entry={entry_date} | "
+                f"Expiry={option_expiry.expiration.date()} | "
+                f"Strike={strike.strike} | "
+                f"Type={strike.option_type} | "
+                f"Ask1545={greeks.ask_1545}"
+            )
 
             trade_df = self.process_trade(
                 option_expiry,
@@ -451,11 +583,13 @@ if __name__ == "__main__":
         dte_target=42,
         strike=60.0,
         option_type="C",
-        contracts=3,
+        contracts=4,
         multiplier=100,
         first_target_multiple=10,
         second_target_multiple=40,
+        third_target_multiple=100,
         first_target_fraction=0.50,
+        spx_inital_multiple=50.0,
     )
 
     with Session(engine) as session:
@@ -466,17 +600,31 @@ if __name__ == "__main__":
         )
 
         results = strategy.run(
-            start_date="2024-07-01",
-            end_date="2024-08-30",
+            start_date="2008-01-01",
+            end_date="2008-12-31",
         )
 
         print(results.head())
         print(results.tail())
 
-        results.to_csv(
-            "vix_long_call_strategy.csv",
-            index=False,
-        )
+        excel_file = "vix_long_call_strategy.xlsx"
+
+        with pd.ExcelWriter(
+                excel_file,
+                engine="openpyxl"
+        ) as writer:
+            for expiry, df_expiry in results.groupby("expiration"):
+                sheet_name = pd.Timestamp(expiry).strftime(
+                    "%Y-%m-%d"
+                )
+
+                df_expiry.to_excel(
+                    writer,
+                    sheet_name=sheet_name,
+                    index=False,
+                )
+
+        print(f"Written {excel_file}")
 
         print(
             f"Rows written: {len(results):,}"
