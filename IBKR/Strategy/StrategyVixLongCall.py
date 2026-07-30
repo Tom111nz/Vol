@@ -609,10 +609,48 @@ if __name__ == "__main__":
 
         excel_file = "vix_long_call_strategy.xlsx"
 
+        summary_rows = []
+
+        for expiry, df_expiry in results.groupby("expiration"):
+            df_expiry = df_expiry.sort_values("quote_date")
+
+            first_row = df_expiry.iloc[0]
+            last_row = df_expiry.iloc[-1]
+
+            summary_rows.append(
+                {
+                    "expiration": expiry,
+                    "first_quote_date": first_row["quote_date"],
+                    "last_quote_date": last_row["quote_date"],
+                    "strike": first_row["strike"],
+                    "entry_price": first_row["entry_price"],
+                    "contracts": params.contracts,
+                    "first_spx_position": first_row["spx_position"],
+                    "last_spx_position": last_row["spx_position"],
+                    "first_spx_plus_realized_pnl":
+                        first_row["spx_plus_realized_pnl"],
+                    "last_spx_plus_realized_pnl":
+                        last_row["spx_plus_realized_pnl"],
+                    "SPX return": last_row["spx_position"] / first_row["spx_position"] - 1,
+                    "Strategy return": last_row["spx_plus_realized_pnl"] / first_row["spx_plus_realized_pnl"] - 1,
+                    "Strategy_gain_dollar": last_row["spx_plus_realized_pnl"] - last_row["spx_position"],
+                    "Strategy_gain_percentage_portfolio": (last_row["spx_plus_realized_pnl"] - last_row["spx_position"]) / first_row["spx_plus_realized_pnl"],
+                }
+            )
+
+        summary_df = pd.DataFrame(summary_rows)
+
         with pd.ExcelWriter(
                 excel_file,
                 engine="openpyxl"
         ) as writer:
+
+            summary_df.to_excel(
+                writer,
+                sheet_name="Summary",
+                index=False,
+            )
+
             for expiry, df_expiry in results.groupby("expiration"):
                 sheet_name = pd.Timestamp(expiry).strftime(
                     "%Y-%m-%d"
