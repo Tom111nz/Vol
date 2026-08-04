@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import timedelta
+from math import floor
 
 import pandas as pd
 import pandas_market_calendars as mcal
@@ -30,7 +31,8 @@ class StrategyParameters:
     strike: float = 60.0
     option_type: str = "C"
 
-    contracts: int = 2
+    contracts: int = 0
+    budget: float = 1000.0
     multiplier: int = 100
 
     first_target_multiple: float = 50.0
@@ -40,6 +42,7 @@ class StrategyParameters:
     spx_inital_multiple: float = 50.0
 
     first_target_fraction: float = 0.50
+
     def __post_init__(self):
         self.option_type = self.option_type.upper()
 
@@ -256,6 +259,17 @@ class VixCallStrategy:
 
         entry_price = greeks.ask_1545
 
+        cost_per_contract = (
+                entry_price * self.params.multiplier
+        )
+
+        self.params.contracts = int(
+            self.params.budget // cost_per_contract
+        )
+
+        if self.params.contracts < 1:
+            return pd.DataFrame()
+
         spx_history = self.get_spx_history(
             entry_date,
             option_expiry.expiration,
@@ -302,9 +316,9 @@ class VixCallStrategy:
         target2_hit = False
         target3_hit = False
 
-        first_tranche = original_contracts / 4.0
-        second_tranche = original_contracts / 4.0
-        third_tranche = original_contracts / 4.0
+        first_tranche = floor(original_contracts / 4.0)
+        second_tranche = floor(original_contracts / 4.0)
+        third_tranche = floor(original_contracts / 4.0)
 
         history = self.get_daily_history(
             entry_date,
@@ -544,7 +558,8 @@ class VixCallStrategy:
                 f"Expiry={option_expiry.expiration.date()} | "
                 f"Strike={strike.strike} | "
                 f"Type={strike.option_type} | "
-                f"Ask1545={greeks.ask_1545}"
+                f"Ask1545={greeks.ask_1545} | "
+                f"Budget={self.params.budget}"
             )
 
             trade_df = self.process_trade(
@@ -583,13 +598,14 @@ if __name__ == "__main__":
         dte_target=42,
         strike=60.0,
         option_type="C",
-        contracts=4,
+        contracts=0, # not required to be set, is updated later in code
+        budget=1000.0,
         multiplier=100,
         first_target_multiple=10,
         second_target_multiple=40,
         third_target_multiple=100,
         first_target_fraction=0.50,
-        spx_inital_multiple=50.0,
+        spx_inital_multiple=100.0, # SPX position is this amount times budget
     )
 
     with Session(engine) as session:
@@ -600,8 +616,8 @@ if __name__ == "__main__":
         )
 
         results = strategy.run(
-            start_date="2024-01-01",
-            end_date="2024-12-31",
+            start_date="2008-01-01",
+            end_date="2008-12-31",
         )
 
         print(results.head())
@@ -624,7 +640,7 @@ if __name__ == "__main__":
                     "last_quote_date": last_row["quote_date"],
                     "strike": first_row["strike"],
                     "entry_price": first_row["entry_price"],
-                    "contracts": params.contracts,
+                    "initial_contracts": first_row["remaining_contracts"],
                     "first_spx_position": first_row["spx_position"],
                     "last_spx_position": last_row["spx_position"],
                     "first_spx_plus_equity":
