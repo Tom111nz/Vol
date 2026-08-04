@@ -29,6 +29,7 @@ class StrategyParameters:
     dte_target: int = 42
 
     strike: float = 60.0
+    delta: float = 0.006
     option_type: str = "C"
 
     contracts: int = 0
@@ -39,7 +40,7 @@ class StrategyParameters:
     second_target_multiple: float = 100.0
     third_target_multiple: float = 150.0
 
-    spx_inital_multiple: float = 50.0
+    spx_initial_multiple: float = 50.0
 
     first_target_fraction: float = 0.50
 
@@ -92,6 +93,7 @@ class OptionGreeks(Base):
 
     bid_1545 = Column(Float)
     ask_1545 = Column(Float)
+    delta_1545 = Column(Float)
 
 class SpxDaily(Base):
     __tablename__ = "spxdaily"
@@ -148,12 +150,12 @@ class VixCallStrategy:
     # --------------------------------------------------------
 
     def find_trade_candidate(
-        self,
-        trade_date,
+            self,
+            trade_date,
     ):
         target_expiry = (
-            pd.Timestamp(trade_date)
-            + timedelta(days=self.params.dte_target)
+                pd.Timestamp(trade_date)
+                + timedelta(days=self.params.dte_target)
         )
 
         stmt = (
@@ -173,30 +175,62 @@ class VixCallStrategy:
                 == OptionGreeks.StrikeID
             )
             .where(
-                func.date(OptionExpiry.quote_date) == trade_date,
+                func.date(OptionExpiry.quote_date)
+                == trade_date,
 
                 OptionExpiry.root.in_(
                     ["VIX", "VIXW"]
                 ),
+
                 OptionExpiry.rootOriginal.in_(
                     ["VIX", "VIXW"]
                 ),
 
-                OptionExpiry.expiration >=
-                target_expiry,
+                OptionExpiry.expiration
+                >= target_expiry,
 
-                Strike.option_type ==
-                self.params.option_type,
-
-                Strike.strike ==
-                self.params.strike,
+                func.upper(Strike.option_type)
+                == self.params.option_type,
             )
             .order_by(
-                OptionExpiry.expiration
+                OptionExpiry.expiration,
+                Strike.strike
             )
         )
 
-        return self.session.execute(stmt).first()
+        rows = self.session.execute(stmt).all()
+
+        if not rows:
+            return None
+
+        # Use nearest expiry >= target_expiry
+        selected_expiry = rows[0][0].expiration
+
+        expiry_rows = [
+            r for r in rows
+            if r[0].expiration == selected_expiry
+        ]
+
+        # Highest strike where delta_1545 <= target delta
+        eligible = [
+            r for r in expiry_rows
+            if (
+                    r[1].delta_1545 is not None
+                    and r[1].delta_1545 <= self.params.delta
+            )
+        ]
+
+        if eligible:
+            return max(
+                eligible,
+                key=lambda r: r[2].strike
+            )
+
+        # Fallback: highest strike available
+        return max(
+            expiry_rows,
+            key=lambda r: r[2].strike
+        )
 
     # --------------------------------------------------------
 
@@ -286,7 +320,7 @@ class VixCallStrategy:
                 entry_price
                 * self.params.contracts
                 * self.params.multiplier
-                * self.params.spx_inital_multiple
+                * self.params.spx_initial_multiple
         )
 
         target1_price = (
@@ -450,6 +484,9 @@ class VixCallStrategy:
                     "strike":
                         strike.strike,
 
+                    "delta":
+                        greeks.delta_1545,
+
                     "entry_price":
                         entry_price,
 
@@ -557,6 +594,7 @@ class VixCallStrategy:
                 f"Entry={entry_date} | "
                 f"Expiry={option_expiry.expiration.date()} | "
                 f"Strike={strike.strike} | "
+                f"Delta={greeks.delta_1545} | "
                 f"Type={strike.option_type} | "
                 f"Ask1545={greeks.ask_1545} | "
                 f"Budget={self.params.budget}"
@@ -596,7 +634,8 @@ if __name__ == "__main__":
 
     params = StrategyParameters(
         dte_target=42,
-        strike=60.0,
+        strike=0.0,# not required to be set (use delta), is updated later in code
+        delta=0.006,
         option_type="C",
         contracts=0, # not required to be set, is updated later in code
         budget=1000.0,
@@ -605,7 +644,7 @@ if __name__ == "__main__":
         second_target_multiple=40,
         third_target_multiple=100,
         first_target_fraction=0.50,
-        spx_inital_multiple=100.0, # SPX position is this amount times budget
+        spx_initial_multiple=100.0, # SPX position is this amount times budget
     )
 
     with Session(engine) as session:
@@ -616,8 +655,8 @@ if __name__ == "__main__":
         )
 
         results = strategy.run(
-            start_date="2008-01-01",
-            end_date="2008-12-31",
+            start_date="2025-01-01",
+            end_date="2025-12-31",
         )
 
         print(results.head())
@@ -639,6 +678,7 @@ if __name__ == "__main__":
                     "first_quote_date": first_row["quote_date"],
                     "last_quote_date": last_row["quote_date"],
                     "strike": first_row["strike"],
+                    "delta_1545": first_row["delta"],
                     "entry_price": first_row["entry_price"],
                     "initial_contracts": first_row["remaining_contracts"],
                     "first_spx_position": first_row["spx_position"],
