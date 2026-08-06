@@ -29,7 +29,7 @@ class StrategyParameters:
     dte_target: int = 42
 
     strike: float = 60.0
-    delta: float = 0.006
+    delta: float = 0.02
     option_type: str = "C"
 
     contracts: int = 0
@@ -211,22 +211,29 @@ class VixCallStrategy:
             if r[0].expiration == selected_expiry
         ]
 
+        for r in expiry_rows:
+            print(
+            f"strike={r[2].strike}, "
+            f"delta={r[1].delta_1545}"
+            )
+
         # Highest strike where delta_1545 <= target delta
         eligible = [
             r for r in expiry_rows
             if (
                     r[1].delta_1545 is not None
                     and r[1].delta_1545 <= self.params.delta
-            )
-        ]
+                )
+                ]
 
         if eligible:
-            return max(
+            return min(
                 eligible,
                 key=lambda r: r[2].strike
             )
 
         # Fallback: highest strike available
+        print("Fallback used to idenitify strike")
         return max(
             expiry_rows,
             key=lambda r: r[2].strike
@@ -362,11 +369,15 @@ class VixCallStrategy:
             option_expiry.rootOriginal,
             option_expiry.root,)
 
+        last_quote_date = history[-1][0]
+
         rows = []
 
         for quote_date, bid_price in history:
 
             bid_price = bid_price or 0.0
+
+            realized_pnl_daily = 0.0
 
             spx_close = spx_dict.get(
                 quote_date.date()
@@ -391,12 +402,15 @@ class VixCallStrategy:
             ):
                 contracts_to_sell = first_tranche
 
-                realized_pnl += (
+                trade_pnl = (
                     bid_price - entry_price
                 ) * (
                     contracts_to_sell
                     * self.params.multiplier
                 )
+
+                realized_pnl += trade_pnl
+                realized_pnl_daily += trade_pnl
 
                 remaining_contracts -= contracts_to_sell
 
@@ -412,12 +426,15 @@ class VixCallStrategy:
             ):
                 contracts_to_sell = second_tranche
 
-                realized_pnl += (
+                trade_pnl = (
                     bid_price - entry_price
                 ) * (
                     contracts_to_sell
                     * self.params.multiplier
                 )
+
+                realized_pnl += trade_pnl
+                realized_pnl_daily += trade_pnl
 
                 remaining_contracts -= contracts_to_sell
 
@@ -433,12 +450,15 @@ class VixCallStrategy:
             ):
                 contracts_to_sell = third_tranche
 
-                realized_pnl += (
+                trade_pnl = (
                                         bid_price - entry_price
                                 ) * (
                                         contracts_to_sell
                                         * self.params.multiplier
                                 )
+
+                realized_pnl += trade_pnl
+                realized_pnl_daily += trade_pnl
 
                 remaining_contracts -= contracts_to_sell
 
@@ -449,16 +469,20 @@ class VixCallStrategy:
             # -----------------------------
 
             if (
-                quote_date.date()
-                >= option_expiry.expiration.date()
+                    (
+                    quote_date.date() >= option_expiry.expiration.date()
+                    or quote_date == last_quote_date
+                    )
                 and remaining_contracts > 0
             ):
-                realized_pnl += (
+                trade_pnl = (
                     bid_price - entry_price
                 ) * (
                     remaining_contracts
                     * self.params.multiplier
                 )
+                realized_pnl += trade_pnl
+                realized_pnl_daily += trade_pnl
 
                 remaining_contracts = 0
 
@@ -516,6 +540,9 @@ class VixCallStrategy:
 
                     "realized_pnl":
                         realized_pnl,
+
+                    "realized_pnl_daily":
+                        realized_pnl_daily,
 
                     "unrealized_value":
                         unrealized_value,
@@ -635,7 +662,7 @@ if __name__ == "__main__":
     params = StrategyParameters(
         dte_target=42,
         strike=0.0,# not required to be set (use delta), is updated later in code
-        delta=0.006,
+        delta=0.01,
         option_type="C",
         contracts=0, # not required to be set, is updated later in code
         budget=1000.0,
@@ -656,7 +683,7 @@ if __name__ == "__main__":
 
         results = strategy.run(
             start_date="2025-01-01",
-            end_date="2025-12-31",
+            end_date="2025-07-31",
         )
 
         print(results.head())
@@ -709,6 +736,89 @@ if __name__ == "__main__":
             .cumprod()
         )
 
+        # ==========================================================
+        # SummaryByDate
+        # Rows = quote dates
+        # Columns = expiries
+        # Values = realized_pnl_daily
+        # ==========================================================
+
+        summary_by_date = results.copy()
+
+        summary_by_date["quote_date"] = pd.to_datetime(
+            summary_by_date["quote_date"]
+        ).dt.date
+
+        summary_by_date["expiration"] = pd.to_datetime(
+            summary_by_date["expiration"]
+        ).dt.date
+
+        summary_by_date = (
+            summary_by_date
+            .pivot_table(
+                index="quote_date",
+                columns="expiration",
+                values="realized_pnl_daily",
+                aggfunc="last",
+            )
+            .sort_index()
+        )
+
+        # Total across all expiries for each date
+        summary_by_date["DailyTotal"] = summary_by_date.sum(
+            axis=1,
+            skipna=True
+        )
+
+        # Running cumulative total
+        summary_by_date["DailyTotalCumulative"] = (
+            summary_by_date["DailyTotal"]
+            .cumsum()
+        )
+
+        # SPX close for each quote date
+        spx_close_by_date = (
+            results.copy()
+        )
+
+        spx_close_by_date["quote_date"] = pd.to_datetime(
+            spx_close_by_date["quote_date"]
+        ).dt.date
+
+        spx_close_by_date = (
+            spx_close_by_date
+            .groupby("quote_date")["spx_close"]
+            .last()
+        )
+
+        summary_by_date["SPX_Close"] = (
+            spx_close_by_date
+        )
+
+        initial_portfolio_value = (
+                params.spx_initial_multiple
+                * params.budget
+        )
+
+        first_spx_close = (
+            summary_by_date["SPX_Close"]
+            .dropna()
+            .iloc[0]
+        )
+
+        summary_by_date["SPX_Portfolio"] = (
+                summary_by_date["SPX_Close"]
+                / first_spx_close
+                * initial_portfolio_value
+        )
+
+        summary_by_date["Portfolio_with_protection"] = (
+                summary_by_date["SPX_Portfolio"]
+                + summary_by_date["DailyTotalCumulative"]
+        )
+
+        summary_by_date = summary_by_date.reset_index()
+
         with pd.ExcelWriter(
                 excel_file,
                 engine="openpyxl"
@@ -718,6 +828,12 @@ if __name__ == "__main__":
                 writer,
                 sheet_name="Summary",
                 index=False,
+            )
+
+            summary_by_date.to_excel(
+                writer,
+                sheet_name = "SummaryByDate",
+                index = False,
             )
 
             for expiry, df_expiry in results.groupby("expiration"):
