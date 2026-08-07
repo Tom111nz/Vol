@@ -217,23 +217,72 @@ class VixCallStrategy:
             f"delta={r[1].delta_1545}"
             )
 
-        # Highest strike where delta_1545 <= target delta
-        eligible = [
-            r for r in expiry_rows
-            if (
-                    r[1].delta_1545 is not None
-                    and r[1].delta_1545 <= self.params.delta
-                )
-                ]
+        # --------------------------------------------------
+        # Delta-based candidate
+        # --------------------------------------------------
 
-        if eligible:
+        delta_row = None
+
+        if self.params.delta != 0:
+
+            eligible = [
+                r for r in expiry_rows
+                if (
+                        r[1].delta_1545 is not None
+                        and r[1].delta_1545 <= self.params.delta
+                )
+            ]
+
+            if eligible:
+                delta_row = min(
+                    eligible,
+                    key=lambda r: r[2].strike
+                )
+
+        # --------------------------------------------------
+        # Strike-based candidate
+        # --------------------------------------------------
+
+        strike_row = None
+
+        if self.params.strike != 0:
+
+            strike_candidates = [
+                r for r in expiry_rows
+                if r[2].strike >= self.params.strike
+            ]
+
+            if strike_candidates:
+                strike_row = min(
+                    strike_candidates,
+                    key=lambda r: r[2].strike
+                )
+
+        # --------------------------------------------------
+        # Selection logic
+        # --------------------------------------------------
+
+        # Both strike and delta specified
+        if delta_row is not None and strike_row is not None:
             return min(
-                eligible,
+                (delta_row, strike_row),
                 key=lambda r: r[2].strike
             )
 
-        # Fallback: highest strike available
-        print("Fallback used to idenitify strike")
+        # Delta only
+        if delta_row is not None:
+            return delta_row
+
+        # Strike only
+        if strike_row is not None:
+            return strike_row
+
+        # --------------------------------------------------
+        # Fallback
+        # --------------------------------------------------
+
+        print("Fallback used to identify strike (max(strike)")
+
         return max(
             expiry_rows,
             key=lambda r: r[2].strike
@@ -373,6 +422,10 @@ class VixCallStrategy:
 
         rows = []
 
+        # Initialize before loop
+        spx_position_plus_realized_pnl = None
+        previous_spx_close = None
+
         for quote_date, bid_price in history:
 
             bid_price = bid_price or 0.0
@@ -497,6 +550,36 @@ class VixCallStrategy:
                 + unrealized_value
             )
 
+            equity = (
+                    realized_pnl
+                    + unrealized_value
+            )
+
+            # --------------------------------------------------
+            # SPX position + realized pnl
+            # --------------------------------------------------
+
+            if spx_close is not None:
+
+                if spx_position_plus_realized_pnl is None:
+                    # First period starts with spx_plus_equity
+                    spx_position_plus_realized_pnl = (
+                            spx_position_current + equity
+                    )
+                else:
+
+                    daily_spx_return = (
+                                               spx_close / previous_spx_close
+                                       ) - 1.0
+
+                    spx_position_plus_realized_pnl = (
+                            spx_position_plus_realized_pnl
+                            * (1.0 + daily_spx_return)
+                            + realized_pnl_daily
+                    )
+
+                previous_spx_close = spx_close
+
             rows.append(
                 {
                     "entry_date": entry_date,
@@ -561,6 +644,9 @@ class VixCallStrategy:
 
                     "spx_plus_equity":
                         spx_position_current + equity,
+
+                    "spx_position_plus_realized_pnl":
+                        spx_position_plus_realized_pnl,
 
                 }
             )
@@ -658,10 +744,10 @@ if __name__ == "__main__":
         DATABASE_URL,
         future=True,
     )
-
+    ## If strike and delta are set, use minimum of these. If only one is set, use that. Else, use fallback.
     params = StrategyParameters(
         dte_target=42,
-        strike=0.0,# not required to be set (use delta), is updated later in code
+        strike=0.0,
         delta=0.01,
         option_type="C",
         contracts=0, # not required to be set, is updated later in code
@@ -682,8 +768,8 @@ if __name__ == "__main__":
         )
 
         results = strategy.run(
-            start_date="2025-01-01",
-            end_date="2025-07-31",
+            start_date="2008-07-01",
+            end_date="2008-10-31",
         )
 
         print(results.head())
