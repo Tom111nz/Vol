@@ -26,6 +26,7 @@ USERNAME = "amandatomnz_gmail_com"
 PASSWORD = "Eaws12345$"
 
 REMOTE_DIR = "subscriptions/order_000016592/item_000020515"          # change if they give you a folder like "/outgoing"
+#REMOTE_DIR = "order_000101085/item_000115435"
 #REMOTE_DIR = "order_000091865/item_000105087" # historical
 LOCAL_DIR = r"C:\Temp\livevol"  # change to where you want files
 
@@ -79,7 +80,7 @@ for zipfilename in sorted(listOfZipFiles): # Loop - looking for matching files
          print("Problem datetime: " + str(zipfilename[-14:-4]))
          continue
      if datetime.datetime.strptime(zipfilename[-14:-4], "%Y-%m-%d") <= datetime.datetime.strptime(lastDateInDb[0],
-                                                                                              "%Y-%m-%d"):
+                                                                                                  "%Y-%m-%d"):
         print("Not processing :" + zipfilename[-14:-4])
         continue
 

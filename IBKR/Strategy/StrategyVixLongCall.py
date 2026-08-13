@@ -115,8 +115,9 @@ class VixCallStrategy:
     ):
         self.session = session
         self.params = params
-
         self.calendar = mcal.get_calendar("NYSE")
+        self.portfolio_balance = None
+        self.spx_balance = None
 
     # --------------------------------------------------------
 
@@ -198,6 +199,13 @@ class VixCallStrategy:
             )
         )
 
+        #compiled = stmt.compile(
+        #    self.session.bind,
+        #    compile_kwargs={"literal_binds": True}
+        #)
+
+        #print(compiled)
+
         rows = self.session.execute(stmt).all()
 
         if not rows:
@@ -211,11 +219,11 @@ class VixCallStrategy:
             if r[0].expiration == selected_expiry
         ]
 
-        for r in expiry_rows:
-            print(
-            f"strike={r[2].strike}, "
-            f"delta={r[1].delta_1545}"
-            )
+        #for r in expiry_rows:
+        #    print(
+        #    f"strike={r[2].strike}, "
+        #    f"delta={r[1].delta_1545}"
+        #    )
 
         # --------------------------------------------------
         # Delta-based candidate
@@ -281,7 +289,7 @@ class VixCallStrategy:
         # Fallback
         # --------------------------------------------------
 
-        print("Fallback used to identify strike (max(strike)")
+        print("Fallback used to identify strike (max(strike))")
 
         return max(
             expiry_rows,
@@ -372,12 +380,19 @@ class VixCallStrategy:
 
         initial_spx = spx_dict.get(entry_date)
 
-        spx_position_value = (
+        initial_portfolio_value = (
                 entry_price
                 * self.params.contracts
                 * self.params.multiplier
                 * self.params.spx_initial_multiple
         )
+
+        if self.portfolio_balance is None:
+            self.portfolio_balance = initial_portfolio_value
+
+        if self.spx_balance is None:
+            self.spx_balance = initial_portfolio_value
+        starting_spx_balance = self.spx_balance
 
         target1_price = (
             entry_price
@@ -423,14 +438,16 @@ class VixCallStrategy:
         rows = []
 
         # Initialize before loop
-        spx_position_plus_realized_pnl = None
+        spx_position_plus_realized_pnl = self.portfolio_balance
         previous_spx_close = None
+        spx_position_current = initial_portfolio_value
 
         for quote_date, bid_price in history:
 
             bid_price = bid_price or 0.0
 
             realized_pnl_daily = 0.0
+            spx_position_plus_realized_pnl_daily = 0.0
 
             spx_close = spx_dict.get(
                 quote_date.date()
@@ -442,7 +459,7 @@ class VixCallStrategy:
                 )
 
                 spx_position_current = (
-                        spx_position_value
+                        starting_spx_balance
                         * spx_return
                 )
             # -----------------------------
@@ -546,11 +563,6 @@ class VixCallStrategy:
             )
 
             equity = (
-                realized_pnl
-                + unrealized_value
-            )
-
-            equity = (
                     realized_pnl
                     + unrealized_value
             )
@@ -561,21 +573,31 @@ class VixCallStrategy:
 
             if spx_close is not None:
 
-                if spx_position_plus_realized_pnl is None:
-                    # First period starts with spx_plus_equity
-                    spx_position_plus_realized_pnl = (
-                            spx_position_current + equity
+                if previous_spx_close is None:
+
+                    spx_position_plus_realized_pnl_daily = (
+                        realized_pnl_daily
                     )
+
                 else:
+
+                    previous_balance = (
+                        spx_position_plus_realized_pnl
+                    )
 
                     daily_spx_return = (
                                                spx_close / previous_spx_close
                                        ) - 1.0
 
                     spx_position_plus_realized_pnl = (
-                            spx_position_plus_realized_pnl
+                            previous_balance
                             * (1.0 + daily_spx_return)
                             + realized_pnl_daily
+                    )
+
+                    spx_position_plus_realized_pnl_daily = (
+                            spx_position_plus_realized_pnl
+                            - previous_balance
                     )
 
                 previous_spx_close = spx_close
@@ -648,8 +670,18 @@ class VixCallStrategy:
                     "spx_position_plus_realized_pnl":
                         spx_position_plus_realized_pnl,
 
+                    "spx_position_plus_realized_pnl_daily":
+                    spx_position_plus_realized_pnl_daily,
+
                 }
             )
+
+            if rows:
+                self.portfolio_balance = (
+                    spx_position_plus_realized_pnl
+                )
+                if spx_position_current is not None:
+                    self.spx_balance = spx_position_current
 
         return pd.DataFrame(rows)
 
@@ -698,6 +730,7 @@ class VixCallStrategy:
             )
 
             if trade is None:
+                print(f"No candidate found for {entry_date}")
                 continue
 
             option_expiry, greeks, strike = trade
@@ -747,7 +780,7 @@ if __name__ == "__main__":
     ## If strike and delta are set, use minimum of these. If only one is set, use that. Else, use fallback.
     params = StrategyParameters(
         dte_target=42,
-        strike=0.0,
+        strike=70.0,
         delta=0.01,
         option_type="C",
         contracts=0, # not required to be set, is updated later in code
@@ -768,12 +801,17 @@ if __name__ == "__main__":
         )
 
         results = strategy.run(
-            start_date="2008-07-01",
-            end_date="2008-10-31",
+            start_date="2022-01-01",
+            end_date="2023-12-31",
         )
 
         print(results.head())
         print(results.tail())
+
+        if results.empty:
+            raise ValueError(
+                "No trades were generated. Check trade selection criteria."
+            )
 
         excel_file = "vix_long_call_strategy.xlsx"
 
@@ -898,8 +936,35 @@ if __name__ == "__main__":
                 * initial_portfolio_value
         )
 
+        # Daily % change in SPX
+        summary_by_date["SPX_Daily_Return"] = (
+            summary_by_date["SPX_Close"]
+            .pct_change()
+            .fillna(0.0)
+        )
+
+        # New portfolio with protection calculation
+        portfolio_with_protection_new = []
+
+        previous_value = initial_portfolio_value
+
+        for _, row in summary_by_date.iterrows():
+            current_value = (
+                    row["DailyTotal"]
+                    + (1.0 + row["SPX_Daily_Return"]) * previous_value
+            )
+
+            portfolio_with_protection_new.append(current_value)
+
+            previous_value = current_value
+
+        summary_by_date["Portfolio_with_protection_new"] = (
+            portfolio_with_protection_new
+        )
+
         summary_by_date["Portfolio_with_protection"] = (
-                summary_by_date["SPX_Portfolio"]
+                #summary_by_date["SPX_Portfolio"]
+                initial_portfolio_value
                 + summary_by_date["DailyTotalCumulative"]
         )
 
