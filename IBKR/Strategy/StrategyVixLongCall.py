@@ -42,7 +42,9 @@ class StrategyParameters:
 
     spx_initial_multiple: float = 50.0
 
-    first_target_fraction: float = 0.50
+    first_target_percentage_allocation: float = 0.0
+    second_target_percentage_allocation: float = 0.0
+    third_target_percentage_allocation: float = 1.0
 
     def __post_init__(self):
         self.option_type = self.option_type.upper()
@@ -355,7 +357,11 @@ class VixCallStrategy:
         if greeks.ask_1545 is None:
             return pd.DataFrame()
 
-        entry_price = greeks.ask_1545
+        ask = greeks.ask_1545
+        entry_price = ask or 0.05
+        # control for ask_1545 is zero or None, which can happen if the option is illiquid. Use a minimum price of 0.05 to avoid division by zero or negative prices.
+        if not ask:
+            print(f"ask_1545={ask}, defaulting entry_price to {entry_price}")
 
         cost_per_contract = (
                 entry_price * self.params.multiplier
@@ -421,9 +427,9 @@ class VixCallStrategy:
         target2_hit = False
         target3_hit = False
 
-        first_tranche = floor(original_contracts / 4.0)
-        second_tranche = floor(original_contracts / 4.0)
-        third_tranche = floor(original_contracts / 4.0)
+        first_tranche = floor(original_contracts * self.params.first_target_percentage_allocation)
+        second_tranche = floor(original_contracts * self.params.second_target_percentage_allocation)
+        third_tranche = floor(original_contracts * self.params.third_target_percentage_allocation)
 
         history = self.get_daily_history(
             entry_date,
@@ -789,8 +795,10 @@ if __name__ == "__main__":
         first_target_multiple=10,
         second_target_multiple=40,
         third_target_multiple=100,
-        first_target_fraction=0.50,
-        spx_initial_multiple=100.0, # SPX position is this amount times budget
+        first_target_percentage_allocation = 0.0,
+        second_target_percentage_allocation = 0.0,
+        third_target_percentage_allocation = 1.0,
+        spx_initial_multiple=200.0, # SPX position is this amount times budget
     )
 
     with Session(engine) as session:
@@ -801,8 +809,8 @@ if __name__ == "__main__":
         )
 
         results = strategy.run(
-            start_date="2022-01-01",
-            end_date="2023-12-31",
+            start_date="2006-01-01",
+            end_date="2026-07-31",
         )
 
         print(results.head())
