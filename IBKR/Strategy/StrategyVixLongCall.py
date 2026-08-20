@@ -796,8 +796,8 @@ if __name__ == "__main__":
         second_target_multiple=40,
         third_target_multiple=100,
         first_target_percentage_allocation = 0.0,
-        second_target_percentage_allocation = 0.0,
-        third_target_percentage_allocation = 1.0,
+        second_target_percentage_allocation = 0.2,
+        third_target_percentage_allocation = 0.8,
         spx_initial_multiple=200.0, # SPX position is this amount times budget
     )
 
@@ -982,6 +982,18 @@ if __name__ == "__main__":
                 excel_file,
                 engine="openpyxl"
         ) as writer:
+
+            params_df = pd.DataFrame(
+                [
+                    {"Parameter": key, "Value": value}
+                    for key, value in vars(params).items()
+                ]
+            )
+            params_df.to_excel(
+                writer,
+                sheet_name="Parameters",
+                index=False,
+            )
 
             summary_df.to_excel(
                 writer,

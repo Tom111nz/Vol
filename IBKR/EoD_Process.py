@@ -14,7 +14,7 @@ except RuntimeError:
 # --------------------------------------------------
 
 ib = IB()
-ib.connect("127.0.0.1", 7496, clientId=1)
+ib.connect("127.0.0.1", 4001, clientId=1)
 
 positions = ib.positions()
 
