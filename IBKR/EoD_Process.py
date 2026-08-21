@@ -1,3 +1,6 @@
+import math
+
+import numpy as np
 from ib_insync import *
 import pandas as pd
 from datetime import datetime
@@ -9,12 +12,30 @@ try:
 except RuntimeError:
     asyncio.set_event_loop(asyncio.new_event_loop())
 
+import math
+import sys
+
+def clean_ib_value(v):
+    if v is None:
+        return 0
+
+    if not isinstance(v, (int, float)):
+        return 0
+
+    if not math.isfinite(v):
+        return 0
+
+    if abs(v) >= sys.float_info.max:
+        return 0
+
+    return round(v, 2)
+
 # --------------------------------------------------
 # Connect to IBKR
 # --------------------------------------------------
 
 ib = IB()
-ib.connect("127.0.0.1", 4001, clientId=1)
+ib.connect("127.0.0.1", 7496, clientId=1)
 
 positions = ib.positions()
 
@@ -90,6 +111,8 @@ total_realized = 0.0
 for pos in positions:
 
     contract = pos.contract
+    if contract.secType == "OPT" and not getattr(contract, "exchange", None):
+        contract.exchange = "SMART"
 
     # Snapshot market price
     ticker = ib.reqMktData(
@@ -107,16 +130,12 @@ for pos in positions:
 
     pnl = pnl_subscriptions.get(contract.conId)
 
-    unrealized = (
-        pnl.unrealizedPnL
-        if pnl and pnl.unrealizedPnL is not None
-        else 0
+    realized = clean_ib_value(
+        pnl.realizedPnL if pnl else None
     )
 
-    realized = (
-        pnl.realizedPnL
-        if pnl and pnl.realizedPnL is not None
-        else 0
+    unrealized = clean_ib_value(
+        pnl.unrealizedPnL if pnl else None
     )
 
     quantity = pos.position
@@ -210,9 +229,11 @@ summary_df = pd.DataFrame([
 # Append / Create Excel Workbook
 # --------------------------------------------------
 
-filename = "IBKR_EOD_Positions.xlsx"
+filename = r"C:\Users\Tom\PycharmProjects\Vol\IBKR\Strategy\IBKR_EOD_Positions.xlsx"
 
 if os.path.exists(filename):
+    print(f"filename = {filename}")
+    print(f"exists = {os.path.exists(filename)}")
 
     existing_positions = pd.read_excel(
         filename,
@@ -233,6 +254,9 @@ if os.path.exists(filename):
         [existing_summary, summary_df],
         ignore_index=True
     )
+
+positions_df.replace([np.inf, -np.inf], 0, inplace=True)
+summary_df.replace([np.inf, -np.inf], 0, inplace=True)
 
 with pd.ExcelWriter(
     filename,
