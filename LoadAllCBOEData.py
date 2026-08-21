@@ -72,7 +72,15 @@ with open(r"C:\\Users\Tom\PycharmProjects\Vol\LoadVIXFutures.py") as f:
 #            print(traceback.format_exc())
 #            pdb.post_mortem()
         print("Error in Loading Vix Futures but we carry on ....")
-logger.info('End VIX Futures')            
+logger.info('End VIX Futures')
+## Load SPX daily data
+print("(3) Loading SPX daily data")
+logger.info('Start SPX daily data')
+logger.info('Program started: %s' % now)
+with open(r"C:\\Users\Tom\PycharmProjects\Vol\IBKR\LoadSPXdata.py") as f:
+    code = compile(f.read(), "LoadSPXdata.py", 'exec')
+    exec(code)
+logger.info('End SPX daily data')
 ## Load VIX Future implied interest rate
 #print("(3) Loading VIX Futures Implied Rate")
 #logger.info('Start VIX Futures Implied Rate')

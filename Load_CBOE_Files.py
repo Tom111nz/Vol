@@ -1,23 +1,14 @@
-import paramiko
-import zipfile
-import time
-import pymysql as mdb
 import datetime
-from LoadCBOEoptionsNew import insertVolData
 import os
+import time
+import zipfile
 
+import paramiko
 
-def get_db_connection():
-    try:
-        return mdb.connect(
-            host="localhost", user="root",
-            passwd="Bright1", db="Vol_test", port=3306,
-            autocommit=False
-        )
-    except KeyError as e:
-        raise RuntimeError(f"Missing required environment variable: {e}")
+from IBKR import Connect
+from LoadCBOEoptionsNew import insertVolData
 
-con = get_db_connection()
+con = Connect.get_db_connection()
 cur = con.cursor()
 
 HOST = "sftp.datashop.livevol.com"

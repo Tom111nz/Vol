@@ -1,6 +1,7 @@
 from ib_insync import IB
 from IBKR.Logging import log, append_fill_row, update_commission
 import logging
+import pymysql as mdb
 
 import asyncio
 try:
@@ -37,3 +38,13 @@ def connect(reqMarketDataType: int):
     )
 
     return ib
+
+def get_db_connection():
+    try:
+        return mdb.connect(
+            host="localhost", user="root",
+            password="Bright1", database="Vol_test", port=3306,
+            autocommit=False
+        )
+    except KeyError as e:
+        raise RuntimeError(f"Missing required environment variable: {e}")
