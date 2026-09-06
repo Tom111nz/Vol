@@ -9,7 +9,7 @@ from dateutil.parser import parse
 from InterpolateUSYield import interpolateUSYield
 
 con = mdb.connect(host="localhost",user="root",
-                  passwd="Bright1",db="Vol", port = 3306)
+                  password="Bright1",database="Vol", port = 3306)
 #DeltaUsed = 0.7
 #InterestRateUsed = 0.01
 calculateVIXFromSingleExpiry_PrintResults = False

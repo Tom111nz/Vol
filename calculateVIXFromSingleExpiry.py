@@ -15,7 +15,7 @@ def calculateVIXFromSingleExpiry(quote_date, optionExpiration_date, r, printResu
         print('calculateVIXFromSingleExpiry: quote_date: ' + str(quote_date))
     # connect to db
     con = mdb.connect(host="localhost",user="root",
-                      passwd="Bright1",db="Vol_Test", port = 3306)
+                      password="Bright1",database="Vol_Test", port = 3306)
     if useOwnData is None:
         # bring back strike level information for expiration on quote_date
         sqlQuery = ('select oe.Expiration, st.strike, st.option_type, og.bid_1545, og.ask_1545, (og.bid_1545 + og.ask_1545)/2, og.implied_volatility_1545 from optiongreeks og '

@@ -4,7 +4,7 @@ import datetime
 
 def interpolateUSYield(quoteDateDateTime, optionExpiryDatetime):
     con = mdb.connect(host="localhost",user="root",
-                      passwd="Bright1",db="Vol_test", port = 3306)
+                      password="Bright1",database="Vol_test", port = 3306)
     #### We exclude the 30Y point because it is sometimes blank, and we never need it anyway
     quoteDateDateTimeIterated = quoteDateDateTime
     sqlResults = None

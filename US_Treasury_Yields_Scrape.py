@@ -10,8 +10,8 @@ import xml.etree.ElementTree as ET
 con = mdb.connect(
     host="localhost",
     user="root",
-    passwd="Bright1",
-    db="Vol_test",
+    password="Bright1",
+    database="Vol_test",
     port=3306
 )
 
